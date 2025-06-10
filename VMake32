@@ -1,0 +1,94 @@
+#!/bin/bash
+
+# check for an input file
+if [ -z "$(echo "${*}" | grep -E '\.c|\.asm')" ]; then
+	if [ $(ls ./ | grep -E '\.c|\.asm' | wc -w) -ne 1 ]; then
+		echo "Please provide the C or ASM code to compile!"
+		exit 1
+	else
+		FILE="$(ls ./ | grep -E '\.c|\.asm' | tr -d '\n' | cut -d "." -f1)"
+	fi
+else
+	FILE=$(echo "${*}" | tr " " "\n" | grep -E '\.c|\.asm' | cut -d "." -f1)
+fi
+
+# Generate the xml file
+#############################################################################################
+function xmlgen {
+	TITLE=$(echo "${FILE}" | sed -e 's/\([a-z]\)\([A-Z]\)/\1 \2/g')
+
+	echo '<?xml version="1.0" encoding="UTF-8" standalone="no" ?>' > "${FILE}.xml"
+	echo '<rom-definition version="1.0">' >> "${FILE}.xml"
+	echo "    <rom type=\"cartridge\" title=\"${TITLE}\" version=\"1.0\" />" >> "${FILE}.xml"
+	echo "    <binary path=\"${FILE}.vbin\" />" >> "${FILE}.xml"
+	echo '    <textures>' >> "${FILE}.xml"
+	for images in $(find ./ -name '*.png' | sort -n); do
+		echo "        <texture path=\"${images%.*}.vtex\" />" >> "${FILE}.xml"
+	done
+	echo '    </textures>' >> "${FILE}.xml"
+	echo '    <sounds>' >> "${FILE}.xml"
+	for sounds in $(find ./ -name '*.wav' | sort -n); do
+		echo "    <sound path=\"${sounds%.*}.vsnd\" />" >> "${FILE}.xml"
+	done
+	echo '    </sounds>' >> "${FILE}.xml"
+	echo '</rom-definition>' >> "${FILE}.xml"
+}
+#############################################################################################
+
+
+# define an abort function to call on error
+abort_build()
+{
+    echo
+    echo BUILD FAILED
+    exit 1
+}
+if [ -n "$(ls ./ | grep -F "${FILE}.c")" ]; then
+	echo
+	echo "Set sail on the 7 C's"
+	echo --------------------------
+	compile ${FILE}.c -o ./${FILE}.asm || abort_build
+fi
+
+echo
+echo "Be patient I have ASM"
+echo --------------------------
+assemble ${FILE}.asm -o ${FILE}.vbin || abort_build
+
+echo
+echo "Rated PNG13"
+echo --------------------------
+for images in $(find ./ -name '*.png' | sort -n); do
+	png2vircon ${images} -o ${images%.*}.vtex  || abort_build
+done
+
+echo
+echo "Ride the WAV"
+echo --------------------------
+for sounds in $(find ./ -name '*.wav' | sort -n); do
+	wav2vircon ${sounds} -o ${sounds%.*}.vsnd  || abort_build
+done
+
+echo
+echo "ROM wasn't built in a day"
+echo --------------------------
+	xmlgen
+	packrom ${FILE}.xml -o ${FILE}.v32 || abort_build
+
+echo
+echo BUILD SUCCESSFUL
+
+if [ -n "$(echo "${*}" | grep "run")" ]; then
+	Vircon32 "${FILE}.v32"
+	rm -f *.v32 *.xml
+    rm -f $(find ./ -name *.vbin) $(find ./ -name *.vtex) $(find ./ -name *.vsnd)
+    if [ -n "$(ls ./ | grep -F "${FILE}.c")" ]; then
+        rm ${FILE}.asm
+    fi
+elif [ -n "$(echo "${*}" | grep "build")" ]; then
+	echo "Build Complete"
+    rm -f $(find ./ -name *.vbin) $(find ./ -name *.vtex) $(find ./ -name *.vsnd)
+    if [ -n "$(ls ./ | grep -F "${FILE}.c")" ]; then
+        rm ${FILE}.asm
+    fi
+fi
