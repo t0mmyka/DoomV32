@@ -251,296 +251,296 @@ void drawSegment(FrameBuffer* clipping, Segment* seg, Player* pov)
 
     asm
     {
+        //Initialize registers
+        "mov  R7,  {progress}"
+        "mov  R8,  {currentTextureScale}"
         "mov  R9,  {currentBottom}"
         "mov  R10, {currentTop}"
         "mov  R13, {clippingPointer}"
-    }
-
-    while(remaining > 0.0)
-    {
-
-        asm
-        {
-            //Determine currentTextureX
-            "mov  R0, {texOverXstart}"
-            "mov  R1, {texOverXend}"
-            "mov  R2, {drawStartX}"
-            "mov  R3, {drawEndX}"
-            "mov  R4, {remaining}"
-            "mov  R5, {progress}"
 
-            "fmul R0, R4"
-            "fmul R1, R5"
-            "fdiv R4, R2"
-            "fdiv R5, R3"
-            "fadd R0, R1"
-            "fadd R4, R5"
-            "fdiv R0, R4"
-
-            "mov  R1, {textureWidth}"
-            "fmod R0, R1"
-
-            //Set X positions
-            "cfi  R0"
-            "out  GPU_RegionMinX, R0"
-            "out  GPU_RegionMaxX, R0"
-            "out  GPU_RegionHotspotX, R0"
-
-            "mov  R0, {column}"
-            "out  GPU_DrawingPointX,  R0"
-
-            //Get clipping
-            "mov  R12, [R13]"
-            "iadd R13, 1"
-            "mov  R11, [R13]"
-            "iadd R13, 1"
-
-
-            //Check if bottom is clipped
-            "mov  R0,  R9"
-            "mov  R1,  R11"
-            "cif  R1"
-            "fgt  R0,  R1"
-            "jf   R0,  _bottom_not_clipped"
-
-            //Bottom is clipped
-
-            // screenBottom
-            "mov  {screenBottom}, R11"
-            "mov  R1,  {screenBottom}"
+        //Loop start
+        "_wall_while_loop_start:"
+
+        //Check loop condition
+        "mov  R0,  R7"
+        "flt  R0,  1.0"
+        "jf   R0,  _wall_while_loop_end"
+
+        //Determine currentTextureX
+        "mov  R0,  {texOverXstart}"
+        "mov  R1,  {texOverXend}"
+        "mov  R2,  {drawStartX}"
+        "mov  R3,  {drawEndX}"
+        "mov  R4,  {remaining}"
+        "mov  R5,  R7"
 
-            // textureBottom
-            "mov  R0,  {textureTrueBottom}"
-            "mov  R2,  R9"
-            "mov  R3,  {currentTextureScale}"
-            "cif  R1"
-            "fsub R2,  R1"
-            "fdiv R2,  R3"
-            "fsub R0,  R2"
+        "fmul R0,  R4"
+        "fmul R1,  R5"
+        "fdiv R4,  R2"
+        "fdiv R5,  R3"
+        "fadd R0,  R1"
+        "fadd R4,  R5"
+        "fdiv R0,  R4"
 
-            // textureFullBottom
-            "mov  R2, R0"
-            "flr  R2"
+        "mov  R1,  {textureWidth}"
+        "fmod R0,  R1"
 
-            // screenFullBottom
-            "fsub R0, R2"
-            "fmul R0, R3"
-            "fsub R1, R0"
-            "cfi  R1"
-            "mov  {screenFullBottom}, R1"
-
-            "cfi  R2"
-            "mov  {textureFullBottom}, R2"
-
-            "jmp  _bottom_clipped_end"
-
+        //Set X positions
+        "cfi  R0"
+        "out  GPU_RegionMinX, R0"
+        "out  GPU_RegionMaxX, R0"
+        "out  GPU_RegionHotspotX, R0"
+
+        "mov  R0, {column}"
+        "out  GPU_DrawingPointX,  R0"
 
-
-            //Bottom is not clipped
-            "_bottom_not_clipped:"
+        //Get clipping
+        "mov  R12, [R13]"
+        "iadd R13, 1"
+        "mov  R11, [R13]"
+        "iadd R13, 1"
+
+
+        //Check if bottom is clipped
+        "mov  R0,  R9"
+        "mov  R1,  R11"
+        "cif  R1"
+        "fgt  R0,  R1"
+        "jf   R0,  _bottom_not_clipped"
 
-            // screenBottom
-            "mov  R1,  R9"
-            "cfi  R1"
-            "mov  {screenBottom}, R1"
-            "mov  R1,  R9"
+        //Bottom is clipped
 
-            // textureBottom
-            "mov  R0, {textureTrueBottom}"
+        // screenBottom
+        "mov  {screenBottom}, R11"
+        "mov  R1,  {screenBottom}"
 
-            // textureFullBottom
-            "mov  R2, R0"
-            "flr  R2"
+        // textureBottom
+        "mov  R0,  {textureTrueBottom}"
+        "mov  R2,  R9"
+        "cif  R1"
+        "fsub R2,  R1"
+        "fdiv R2,  R8"
+        "fsub R0,  R2"
 
-            // screenFullBottom
-            "fsub R0, R2"
-            "mov  R3, {currentTextureScale}"
-            "fmul R0, R3"
-            "fsub R1, R0"
-            "cfi  R1"
-            "mov  {screenFullBottom}, R1"
+        // textureFullBottom
+        "mov  R2, R0"
+        "flr  R2"
 
-            "cfi  R2"
-            "mov  {textureFullBottom}, R2"
+        // screenFullBottom
+        "fsub R0,  R2"
+        "fmul R0,  R8"
+        "fsub R1,  R0"
+        "cfi  R1"
+        "mov  {screenFullBottom}, R1"
 
-            "_bottom_clipped_end:"
+        "cfi  R2"
+        "mov  {textureFullBottom}, R2"
 
+        "jmp  _bottom_clipped_end"
 
 
 
-            //Check if top is clipped
-            "mov  R0,  R10"
-            "mov  R1,  R12"
-            "cif  R1"
-            "flt  R0,  R1"
-            "jf   R0,  _top_not_clipped"
+        //Bottom is not clipped
+        "_bottom_not_clipped:"
 
-            //Top is clipped
+        // screenBottom
+        "mov  R1,  R9"
+        "cfi  R1"
+        "mov  {screenBottom}, R1"
+        "mov  R1,  R9"
 
-            // screenTop
-            "mov  {screenTop}, R12"
+        // textureBottom
+        "mov  R0, {textureTrueBottom}"
 
-            // textureTop
-            "mov  R0,  {textureTrueTop}"
-            "mov  R2,  R10"
-            "mov  R3,  {currentTextureScale}"
-            "cif  R1"
-            "fsub R2,  R1"
-            "fdiv R2,  R3"
-            "fsub R0,  R2"
+        // textureFullBottom
+        "mov  R2, R0"
+        "flr  R2"
 
-            // textureFullTop
-            "mov  R2,  R0"
-            "ceil R2"
+        // screenFullBottom
+        "fsub R0, R2"
+        "fmul R0, R8"
+        "fsub R1, R0"
+        "cfi  R1"
+        "mov  {screenFullBottom}, R1"
 
-            // screenFullTop
-            "fsub R0,  R2"
-            "fmul R0,  R3"
-            "fsub R1,  R0"
-            "cfi  R1"
-            "mov  {screenFullTop}, R1"
+        "cfi  R2"
+        "mov  {textureFullBottom}, R2"
 
-            "cfi  R2"
-            "mov  {textureFullTop}, R2"
+        "_bottom_clipped_end:"
 
-            "jmp  _top_clipped_end"
 
 
 
-            //Top is not clipped
-            "_top_not_clipped:"
+        //Check if top is clipped
+        "mov  R0,  R10"
+        "mov  R1,  R12"
+        "cif  R1"
+        "flt  R0,  R1"
+        "jf   R0,  _top_not_clipped"
 
-            // screenTop
-            "mov  R1,  R10"
-            "cfi  R1"
-            "mov  {screenTop}, R1"
-            "mov  R1,  R10"
+        //Top is clipped
 
-            // textureTop
-            "mov  R0, {textureTrueTop}"
+        // screenTop
+        "mov  {screenTop}, R12"
 
-            // textureFullTop
-            "mov  R2, R0"
-            "ceil R2"
+        // textureTop
+        "mov  R0,  {textureTrueTop}"
+        "mov  R2,  R10"
+        "cif  R1"
+        "fsub R2,  R1"
+        "fdiv R2,  R8"
+        "fsub R0,  R2"
 
-            // screenFullTop
-            "fsub R0, R2"
-            "mov  R3, {currentTextureScale}"
-            "fmul R0, R3"
-            "fsub R1, R0"
-            "cfi  R1"
-            "mov  {screenFullTop}, R1"
+        // textureFullTop
+        "mov  R2,  R0"
+        "ceil R2"
 
-            "cfi  R2"
-            "mov  {textureFullTop}, R2"
+        // screenFullTop
+        "fsub R0,  R2"
+        "fmul R0,  R8"
+        "fsub R1,  R0"
+        "cfi  R1"
+        "mov  {screenFullTop}, R1"
 
-            "_top_clipped_end:"
+        "cfi  R2"
+        "mov  {textureFullTop}, R2"
 
+        "jmp  _top_clipped_end"
 
 
 
-            //Texture Full Check
-            "mov  R2, {textureFullBottom}"
-            "mov  R3, {textureFullTop}"
-            "igt  R2, R3"
-            "jf   R2, _fullTextureSkip"
+        //Top is not clipped
+        "_top_not_clipped:"
 
-            //Texture Full drawing
-            "mov  R0,  {screenFullBottom}"
-            "mov  R1,  {screenFullTop}"
-            "mov  R2,  {textureFullBottom}"
-            "mov  R3,  {textureFullTop}"
-            "isub R0,  R1"
-            "isub R2,  R3"
-            "cif  R0"
-            "cif  R2"
-            "fdiv R0,  R2"
-            "out  GPU_DrawingScaleY, R0"
+        // screenTop
+        "mov  R1,  R10"
+        "cfi  R1"
+        "mov  {screenTop}, R1"
+        "mov  R1,  R10"
 
-            "mov  R2,  {textureFullBottom}"
-            "out  GPU_RegionMinY, R3"
-            "out  GPU_RegionHotspotY, R2"
-            "isub R2,  1"
-            "out  GPU_RegionMaxY, R2"
+        // textureTop
+        "mov  R0, {textureTrueTop}"
 
-            "mov  R0,  {screenFullBottom}"
-            "out  GPU_DrawingPointY, R0"
-            "out  GPU_Command, GPUCommand_DrawRegionZoomed"
+        // textureFullTop
+        "mov  R2, R0"
+        "ceil R2"
 
-            "_fullTextureSkip:"
+        // screenFullTop
+        "fsub R0, R2"
+        "fmul R0, R8"
+        "fsub R1, R0"
+        "cfi  R1"
+        "mov  {screenFullTop}, R1"
 
-            //Texture Top Check
-            "mov  R0,  {screenFullTop}"
-            "mov  R1,  {screenTop}"
-            "ine  R0,  R1"
-            "jf   R0,  _topTextureSkip"
+        "cfi  R2"
+        "mov  {textureFullTop}, R2"
 
-            //Texture Top Drawing
-            "mov  R0,  {screenFullTop}"
-            "isub R0,  R1"
-            "cif  R0"
-            "out  GPU_DrawingScaleY, R0"
+        "_top_clipped_end:"
 
-            "mov  R0,  {textureFullTop}"
-            "isub R0,  1"
-            "out  GPU_RegionMinY, R0"
-            "out  GPU_RegionMaxY, R0"
-            "out  GPU_RegionHotspotY, R0"
 
-            "out  GPU_DrawingPointY, R1"
-            "out  GPU_Command, GPUCommand_DrawRegionZoomed"
 
-            "_topTextureSkip:"
 
-            //Texture Bottom Check
-            "mov  R0,  {screenFullBottom}"
-            "mov  R1,  {screenBottom}"
-            "ine  R0,  R1"
-            "jf   R0,  _bottomTextureSkip"
+        //Texture Full Check
+        "mov  R2, {textureFullBottom}"
+        "mov  R3, {textureFullTop}"
+        "igt  R2, R3"
+        "jf   R2, _fullTextureSkip"
 
-            //Texture Bottom Drawing
-            "mov  R0,  {screenFullBottom}"
-            "isub R1,  R0"
-            "cif  R1"
-            "out  GPU_DrawingScaleY, R1"
+        //Texture Full drawing
+        "mov  R0,  {screenFullBottom}"
+        "mov  R1,  {screenFullTop}"
+        "mov  R2,  {textureFullBottom}"
+        "mov  R3,  {textureFullTop}"
+        "isub R0,  R1"
+        "isub R2,  R3"
+        "cif  R0"
+        "cif  R2"
+        "fdiv R0,  R2"
+        "out  GPU_DrawingScaleY, R0"
 
-            "mov  R1,  {textureFullBottom}"
-            "out  GPU_RegionMinY, R1"
-            "out  GPU_RegionMaxY, R1"
-            "out  GPU_RegionHotspotY, R1"
+        "mov  R2,  {textureFullBottom}"
+        "out  GPU_RegionMinY, R3"
+        "out  GPU_RegionHotspotY, R2"
+        "isub R2,  1"
+        "out  GPU_RegionMaxY, R2"
 
-            "out  GPU_DrawingPointY, R0"
-            "out  GPU_Command, GPUCommand_DrawRegionZoomed"
+        "mov  R0,  {screenFullBottom}"
+        "out  GPU_DrawingPointY, R0"
+        "out  GPU_Command, GPUCommand_DrawRegionZoomed"
 
-            "_bottomTextureSkip:"
+        "_fullTextureSkip:"
 
+        //Texture Top Check
+        "mov  R0,  {screenFullTop}"
+        "mov  R1,  {screenTop}"
+        "ine  R0,  R1"
+        "jf   R0,  _topTextureSkip"
 
+        //Texture Top Drawing
+        "mov  R0,  {screenFullTop}"
+        "isub R0,  R1"
+        "cif  R0"
+        "out  GPU_DrawingScaleY, R0"
 
-            // While iterators
-            "mov  R1,  {topStep}"
-            "fadd R10, R1"
+        "mov  R0,  {textureFullTop}"
+        "isub R0,  1"
+        "out  GPU_RegionMinY, R0"
+        "out  GPU_RegionMaxY, R0"
+        "out  GPU_RegionHotspotY, R0"
 
-            "mov  R1,  {bottomStep}"
-            "fadd R9,  R1"
+        "out  GPU_DrawingPointY, R1"
+        "out  GPU_Command, GPUCommand_DrawRegionZoomed"
 
-            "mov  R0,  {currentTextureScale}"
-            "mov  R1,  {textureScaleStep}"
-            "fadd R0,  R1"
-            "mov  {currentTextureScale}, R0"
+        "_topTextureSkip:"
 
-            "mov  R0,  {progress}"
-            "mov  R1,  {progresStep}"
-            "fadd R0,  R1"
-            "mov  {progress}, R0"
+        //Texture Bottom Check
+        "mov  R0,  {screenFullBottom}"
+        "mov  R1,  {screenBottom}"
+        "ine  R0,  R1"
+        "jf   R0,  _bottomTextureSkip"
 
-            "mov  R0,  {remaining}"
-            "fsub R0,  R1"
-            "mov  {remaining}, R0"
+        //Texture Bottom Drawing
+        "mov  R0,  {screenFullBottom}"
+        "isub R1,  R0"
+        "cif  R1"
+        "out  GPU_DrawingScaleY, R1"
 
-            "mov  R0,  {column}"
-            "iadd R0,  1"
-            "mov  {column}, R0"
-        }
+        "mov  R1,  {textureFullBottom}"
+        "out  GPU_RegionMinY, R1"
+        "out  GPU_RegionMaxY, R1"
+        "out  GPU_RegionHotspotY, R1"
+
+        "out  GPU_DrawingPointY, R0"
+        "out  GPU_Command, GPUCommand_DrawRegionZoomed"
+
+        "_bottomTextureSkip:"
+
+
+
+        // While iterators
+        "mov  R1,  {topStep}"
+        "fadd R10, R1"
+
+        "mov  R1,  {bottomStep}"
+        "fadd R9,  R1"
+
+        "mov  R1,  {textureScaleStep}"
+        "fadd R8,  R1"
+
+        "mov  R1,  {progresStep}"
+        "fadd R7,  R1"
+
+        "mov  R0,  {remaining}"
+        "fsub R0,  R1"
+        "mov  {remaining}, R0"
+
+        "mov  R0,  {column}"
+        "iadd R0,  1"
+        "mov  {column}, R0"
+
+        "jmp  _wall_while_loop_start"
+
+        "_wall_while_loop_end:"
     }
 
 
