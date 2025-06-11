@@ -264,6 +264,7 @@ void drawSegment(FrameBuffer* clipping, Segment* seg, Player* pov)
         "mov  R8,  {currentTextureScale}"
         "mov  R9,  {currentBottom}"
         "mov  R10, {currentTop}"
+        "mov  R11, {column}"
         "mov  R13, {clippingPointer}"
 
         //Loop start
@@ -287,8 +288,7 @@ void drawSegment(FrameBuffer* clipping, Segment* seg, Player* pov)
         "out  GPU_RegionMaxX, R0"
         "out  GPU_RegionHotspotX, R0"
 
-        "mov  R0, {column}"
-        "out  GPU_DrawingPointX,  R0"
+        "out  GPU_DrawingPointX,  R11"
 
         //Get bottom clipping
         "mov  R12, [R13]"
@@ -535,9 +535,7 @@ void drawSegment(FrameBuffer* clipping, Segment* seg, Player* pov)
         "mov  R1,  {texOverXstep}"
         "fadd R4,  R1"
 
-        "mov  R0,  {column}"
-        "iadd R0,  1"
-        "mov  {column}, R0"
+        "iadd R11, 1"
 
         "jmp  _wall_while_loop_start"
 
