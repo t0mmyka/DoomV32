@@ -60,7 +60,7 @@ struct Segment
 struct FrameBuffer
 {
     int[SCREENWIDTH]   fast;
-    int[SCREENWIDTH*2] full;
+    int[SCREENWIDTH*2] full; //(Top, Bottom)//
 };
 
 union data
@@ -290,16 +290,14 @@ void drawSegment(FrameBuffer* clipping, Segment* seg, Player* pov)
         "mov  R0, {column}"
         "out  GPU_DrawingPointX,  R0"
 
-        //Get clipping
+        //Get bottom clipping
         "mov  R12, [R13]"
-        "iadd R13, 1"
-        "mov  R11, [R13]"
         "iadd R13, 1"
 
 
         //Check if bottom is clipped
         "mov  R0,  R9"
-        "mov  R1,  R11"
+        "mov  R1,  R12"
         "cif  R1"
         "fgt  R0,  R1"
         "jf   R0,  _bottom_not_clipped"
@@ -307,7 +305,7 @@ void drawSegment(FrameBuffer* clipping, Segment* seg, Player* pov)
         //Bottom is clipped
 
         // screenBottom
-        "mov  {screenBottom}, R11"
+        "mov  {screenBottom}, R12"
         "mov  R1,  {screenBottom}"
 
         // textureBottom
@@ -366,6 +364,10 @@ void drawSegment(FrameBuffer* clipping, Segment* seg, Player* pov)
 
 
 
+
+        //Get top clipping
+        "mov  R12, [R13]"
+        "iadd R13, 1"
 
         //Check if top is clipped
         "mov  R0,  R10"
@@ -611,8 +613,8 @@ void main(void)
     }
     for(int i = 0; i < SCREENWIDTH*2; i += 2)
     {
-        drawClip.full[i]   = 0;
-        drawClip.full[i+1] = SCREENHEIGHT - 1;
+        drawClip.full[i]   = SCREENHEIGHT - 1;
+        drawClip.full[i+1] = 0;
     }
     cleanBuffer = drawClip;
 
