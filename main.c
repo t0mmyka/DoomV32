@@ -229,6 +229,11 @@ void drawSegment(FrameBuffer* clipping, Segment* seg, Player* pov)
 
     float texOverXstart = textureXstart / drawStartX;
     float texOverXend   = textureXend   / drawEndX;
+    float texOverXstep  = (texOverXend - texOverXstart) / onScreenWidth;
+
+    float inverseXstart = 1.0 / drawStartX;
+    float inverseXend   = 1.0 / drawEndX;
+    float inverseXstep  =  (inverseXend - inverseXstart) / onScreenWidth;
 
     float roomHeight        = seg->sectorLeft->roomHeight;
     float textureTrueTop    = textureHeight - textureYoffset - roomHeight;
@@ -252,6 +257,9 @@ void drawSegment(FrameBuffer* clipping, Segment* seg, Player* pov)
     asm
     {
         //Initialize registers
+        "mov  R4,  {texOverXstart}"
+        "mov  R5,  {inverseXstart}"
+        "mov  R6,  {remaining}"
         "mov  R7,  {progress}"
         "mov  R8,  {currentTextureScale}"
         "mov  R9,  {currentBottom}"
@@ -267,20 +275,8 @@ void drawSegment(FrameBuffer* clipping, Segment* seg, Player* pov)
         "jf   R0,  _wall_while_loop_end"
 
         //Determine currentTextureX
-        "mov  R0,  {texOverXstart}"
-        "mov  R1,  {texOverXend}"
-        "mov  R2,  {drawStartX}"
-        "mov  R3,  {drawEndX}"
-        "mov  R4,  {remaining}"
-        "mov  R5,  R7"
-
-        "fmul R0,  R4"
-        "fmul R1,  R5"
-        "fdiv R4,  R2"
-        "fdiv R5,  R3"
-        "fadd R0,  R1"
-        "fadd R4,  R5"
-        "fdiv R0,  R4"
+        "mov  R0,  R4"
+        "fdiv R0,  R5"
 
         "mov  R1,  {textureWidth}"
         "fmod R0,  R1"
@@ -529,10 +525,13 @@ void drawSegment(FrameBuffer* clipping, Segment* seg, Player* pov)
 
         "mov  R1,  {progresStep}"
         "fadd R7,  R1"
+        "fsub R6,  R1"
 
-        "mov  R0,  {remaining}"
-        "fsub R0,  R1"
-        "mov  {remaining}, R0"
+        "mov  R1,  {inverseXstep}"
+        "fadd R5,  R1"
+
+        "mov  R1,  {texOverXstep}"
+        "fadd R4,  R1"
 
         "mov  R0,  {column}"
         "iadd R0,  1"
