@@ -57,6 +57,19 @@ struct Segment
     float yOffset;
 };
 
+struct BspBranch
+{
+    BspBranch* parentNode;
+    BspBranch* leftNode;
+    BspBranch* rightNode;
+    BspLeaf*   currentLeaf;
+}
+
+struct BspLeaf
+{
+    Segment* segList;
+}
+
 struct FrameBuffer
 {
     int[SCREENWIDTH]   fast;
@@ -235,10 +248,11 @@ void drawSegment(FrameBuffer* clipping, Segment* seg, Player* pov)
     float inverseXend   = 1.0 / drawEndX;
     float inverseXstep  =  (inverseXend - inverseXstart) / onScreenWidth;
 
-    float roomHeight        = seg->sectorLeft->roomHeight;
-    float textureTrueTop    = textureHeight - textureYoffset - roomHeight;
-    float textureTrueBottom = textureHeight - textureYoffset;
-    int*  clippingPointer   = &(clipping->full[column*2]);
+    float roomHeight          = seg->sectorLeft->roomHeight;
+    float textureTrueTop      = textureHeight - textureYoffset - roomHeight;
+    float textureTrueBottom   = textureHeight - textureYoffset;
+    int*  fullClippingPointer = &(clipping->full[column*2]);
+    int*  fastClippingPointer = &(clipping->fast[0]);
     int   screenClipTop;
     int   screenClipBottom;
     int   screenTop;
@@ -265,7 +279,7 @@ void drawSegment(FrameBuffer* clipping, Segment* seg, Player* pov)
         "mov  R9,  {currentBottom}"
         "mov  R10, {currentTop}"
         "mov  R11, {column}"
-        "mov  R13, {clippingPointer}"
+        "mov  R13, {fullClippingPointer}"
 
         //Loop start
         "_wall_while_loop_start:"
@@ -274,6 +288,13 @@ void drawSegment(FrameBuffer* clipping, Segment* seg, Player* pov)
         "mov  R0,  R7"
         "flt  R0,  1.0"
         "jf   R0,  _wall_while_loop_end"
+
+        //Check fast clipping
+        "mov  R1,   {fastClippingPointer}"
+        "iadd R1,   R11"
+        "mov  R0,   [R1]"
+        "jt   R0,   _wall_while_loop_iterators"
+        "mov  [R1], R1"
 
         //Determine currentTextureX
         "mov  R0,  R4"
@@ -306,13 +327,12 @@ void drawSegment(FrameBuffer* clipping, Segment* seg, Player* pov)
 
         // screenBottom
         "mov  {screenBottom}, R12"
-        "mov  R1,  {screenBottom}"
 
         // textureBottom
         "mov  R0,  {textureTrueBottom}"
         "mov  R2,  R9"
-        "cif  R1"
-        "fsub R2,  R1"
+        "cif  R12"
+        "fsub R2,  R12"
         "fdiv R2,  R8"
         "fsub R0,  R2"
 
@@ -323,9 +343,9 @@ void drawSegment(FrameBuffer* clipping, Segment* seg, Player* pov)
         // screenFullBottom
         "fsub R0,  R2"
         "fmul R0,  R8"
-        "fsub R1,  R0"
-        "cfi  R1"
-        "mov  {screenFullBottom}, R1"
+        "fsub R12, R0"
+        "cfi  R12"
+        "mov  {screenFullBottom}, R12"
 
         "cfi  R2"
         "mov  {textureFullBottom}, R2"
@@ -384,7 +404,6 @@ void drawSegment(FrameBuffer* clipping, Segment* seg, Player* pov)
         // textureTop
         "mov  R0,  {textureTrueTop}"
         "mov  R2,  R10"
-        "cif  R1"
         "fsub R2,  R1"
         "fdiv R2,  R8"
         "fsub R0,  R2"
@@ -441,8 +460,8 @@ void drawSegment(FrameBuffer* clipping, Segment* seg, Player* pov)
         //Texture Full Check
         "mov  R2, {textureFullBottom}"
         "mov  R3, {textureFullTop}"
-        "igt  R2, R3"
-        "jf   R2, _fullTextureSkip"
+        "ile  R2, R3"
+        "jt   R2, _fullTextureSkip"
 
         //Texture Full drawing
         "mov  R0,  {screenFullBottom}"
@@ -471,11 +490,13 @@ void drawSegment(FrameBuffer* clipping, Segment* seg, Player* pov)
         //Texture Top Check
         "mov  R0,  {screenFullTop}"
         "mov  R1,  {screenTop}"
-        "ine  R0,  R1"
-        "jf   R0,  _topTextureSkip"
+        "ine  R1,  R0"
+        "jf   R1,  _topTextureSkip"
 
         //Texture Top Drawing
-        "mov  R0,  {screenFullTop}"
+        "mov  R1,  {screenBottom}"
+        "imin R0,  R1"
+        "mov  R1,  {screenTop}"
         "isub R0,  R1"
         "cif  R0"
         "out  GPU_DrawingScaleY, R0"
@@ -494,11 +515,13 @@ void drawSegment(FrameBuffer* clipping, Segment* seg, Player* pov)
         //Texture Bottom Check
         "mov  R0,  {screenFullBottom}"
         "mov  R1,  {screenBottom}"
-        "ine  R0,  R1"
-        "jf   R0,  _bottomTextureSkip"
+        "ine  R1,  R0"
+        "jf   R1,  _bottomTextureSkip"
 
         //Texture Bottom Drawing
-        "mov  R0,  {screenFullBottom}"
+        "mov  R1,  {screenTop}"
+        "imax R0,  R1"
+        "mov  R1,  {screenBottom}"
         "isub R1,  R0"
         "cif  R1"
         "out  GPU_DrawingScaleY, R1"
@@ -514,6 +537,8 @@ void drawSegment(FrameBuffer* clipping, Segment* seg, Player* pov)
         "_bottomTextureSkip:"
 
 
+
+        "_wall_while_loop_iterators:"
 
         // While iterators
         "mov  R1,  {topStep}"
@@ -589,13 +614,13 @@ void main(void)
     wall1.bottom      = &emptyTexture;
     wall1.middle      = &emptyTexture;
     wall1.top         = &emptyTexture;
-    wall1.yOffset     =  0.5;
+    wall1.yOffset     =  0.7;
     wall1.xOffset     =  0.0;
 
-    wall2.xPos        =  6.0;
-    wall2.yPos        =  1.0;
-    wall2.dx          = -8.0;
-    wall2.dy          =  6.0;
+    wall2.xPos        =  9.0;
+    wall2.yPos        =  -3.0;
+    wall2.dx          = -2.0;
+    wall2.dy          =  11.0;
     wall2.length      = sqrt(wall2.dx * wall2.dx + wall2.dy * wall2.dy);
     wall2.sectorLeft  = &Room0;
     wall2.sectorRight = &Room1;
@@ -612,7 +637,7 @@ void main(void)
     for(int i = 0; i < SCREENWIDTH*2; i += 2)
     {
         drawClip.full[i]   = SCREENHEIGHT - 1;
-        drawClip.full[i+1] = 0;
+        drawClip.full[i+1] = 60;
     }
     cleanBuffer = drawClip;
 
@@ -647,6 +672,7 @@ void main(void)
 
         user.xPos += user.dirCos * speedX + user.dirSin * speedY;
         user.yPos += user.dirCos * speedY - user.dirSin * speedX;
+        drawClip = cleanBuffer;
         end_frame();
     }
 
