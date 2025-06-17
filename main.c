@@ -48,8 +48,8 @@ struct Segment
     float dx;
     float dy;
     float length;
-    Sector* sectorLeft;
     Sector* sectorRight;
+    Sector* sectorLeft;
     Texture* bottom;
     Texture* middle;
     Texture* top;
@@ -57,18 +57,23 @@ struct Segment
     float yOffset;
 };
 
+struct BspLeaf
+{
+    Segment** segList;
+};
+
 struct BspBranch
 {
+    float      HyperX;
+    float      HyperY;
+    float      HyperDy;
+    float      HyperDx;
+    bool       BranchSide;
     BspBranch* parentNode;
     BspBranch* leftNode;
     BspBranch* rightNode;
     BspLeaf*   currentLeaf;
-}
-
-struct BspLeaf
-{
-    Segment* segList;
-}
+};
 
 struct FrameBuffer
 {
@@ -82,26 +87,42 @@ union data
     float fl;
 };
 
-bool onLeftSide(Segment* seg, float x, float y)
+bool onRightSideSeg(Segment* seg, float x, float y)
 {
-    float dx;
-    float dy;
-
-    dx = x - seg->xPos;
-    dy = y - seg->yPos;
+    float dx = x - seg->xPos;
+    float dy = y - seg->yPos;
 
     float left  = dx * seg->dy;
     float right = dy * seg->dx;
     if(right < left)
     {
-        return 0;
+        return 1;
     }
     else
     {
-        return 1;
+        return 0;
     }
 }
 
+bool onRightSideBranch(BspBranch* branch, float x, float y)
+{
+    float dx;
+    float dy;
+
+    dx = x - branch->HyperX;
+    dy = y - branch->HyperY;
+
+    float left  = dx * branch->HyperDy;
+    float right = dy * branch->HyperDx;
+    if(right < left)
+    {
+        return 1;
+    }
+    else
+    {
+        return 0;
+    }
+}
 
 void drawSegment(FrameBuffer* clipping, Segment* seg, Player* pov)
 {
@@ -110,8 +131,9 @@ void drawSegment(FrameBuffer* clipping, Segment* seg, Player* pov)
     float povX = pov->xPos;
     float povY = pov->yPos;
 
-    if(!onLeftSide(seg, povX, povY)) //Backface culling
+    if(!onRightSideSeg(seg, povX, povY)) //Backface culling
     {
+        clear_screen(color_red);
         return;
     }
 
@@ -125,40 +147,38 @@ void drawSegment(FrameBuffer* clipping, Segment* seg, Player* pov)
     float segDeltaY;
 
     segStartX.fl = pov->dirCos * (seg->xPos - povX)
-                 - pov->dirSin * (seg->yPos - povY);
+                 + pov->dirSin * (seg->yPos - povY);
 
     segDeltaX    = pov->dirCos * seg->dx
-                 - pov->dirSin * seg->dy;
+                 + pov->dirSin * seg->dy;
 
     segEndX.fl   = segStartX.fl + segDeltaX;
 
-    if((segStartX.in & segEndX.in) < 0) //Bing
+    if((segStartX.in & segEndX.in) < 0) //Behind culling
     {
         return;
     }
 
 
-    segStartY.fl = pov->dirSin * (seg->xPos - povX)
-                 + pov->dirCos * (seg->yPos - povY);
+    segStartY.fl = pov->dirCos * (seg->yPos - povY)
+                 - pov->dirSin * (seg->xPos - povX);
 
-    segDeltaY    = pov->dirSin * seg->dx
-                 + pov->dirCos * seg->dy;
+    segDeltaY    = pov->dirCos * seg->dy
+                 - pov->dirSin * seg->dx;
 
     segEndY.fl   = segStartY.fl + segDeltaY;
-
-    //return;
 
     data temp;
     temp.in = segStartX.in & 0x7FFFFFFF;
     if(segStartY.fl > temp.fl) //Start point culling
     {
-        return;
+        //return;
     }
 
     temp.in = segEndX.in | 0x80000000;
     if(segEndY.fl < temp.fl) //End point culling
     {
-        return;
+        //return;
     }
 
     float drawStartX;
@@ -204,21 +224,29 @@ void drawSegment(FrameBuffer* clipping, Segment* seg, Player* pov)
         textureXend = seg->xOffset + seg->length;
     }
 
+    select_texture(-1);
+    select_region(304);
+    set_drawing_scale(4.0, 4.0);
+    draw_region_zoomed_at(320, 180);
+    draw_region_zoomed_at(320 + segStartX.fl, 180 - segStartY.fl);
+    draw_region_zoomed_at(320 + segEndX.fl,   180 - segEndY.fl);
+    return;
+
     float onScreenWidth = SCREENWIDTH * (drawEndY/drawEndX - drawStartY/drawStartX) / 2;
 
     temp.fl = pov->zPos;
 
     float topStart    =  SCREENCENTERY
-                      - (SCREENHEIGHT * (seg->sectorLeft->ceilingHeight - temp.fl) / drawStartX);
+                      - (SCREENHEIGHT * (seg->sectorRight->ceilingHeight - temp.fl) / drawStartX);
 
     float topEnd      = SCREENCENTERY
-                      - (SCREENHEIGHT * (seg->sectorLeft->ceilingHeight - temp.fl) / drawEndX);
+                      - (SCREENHEIGHT * (seg->sectorRight->ceilingHeight - temp.fl) / drawEndX);
 
     float bottomStart =  SCREENCENTERY
-                      - (SCREENHEIGHT * (seg->sectorLeft->floorHeight   - temp.fl) / drawStartX);
+                      - (SCREENHEIGHT * (seg->sectorRight->floorHeight   - temp.fl) / drawStartX);
 
     float bottomEnd   = SCREENCENTERY
-                      - (SCREENHEIGHT * (seg->sectorLeft->floorHeight   - temp.fl) / drawEndX);
+                      - (SCREENHEIGHT * (seg->sectorRight->floorHeight   - temp.fl) / drawEndX);
 
     float currentTop = topStart;
     float topStep    = (topEnd - topStart) / onScreenWidth;
@@ -229,16 +257,16 @@ void drawSegment(FrameBuffer* clipping, Segment* seg, Player* pov)
     float textureWidth  = seg->middle->width;
     float textureHeight = seg->middle->height;
 
-    float currentTextureScale = (bottomStart - topStart) / seg->sectorLeft->roomHeight;
+    float currentTextureScale = (bottomStart - topStart) / seg->sectorRight->roomHeight;
     float textureScaleStep    = (bottomEnd - topEnd - bottomStart + topStart)
-                              / (seg->sectorLeft->roomHeight * onScreenWidth);
+                              / (seg->sectorRight->roomHeight * onScreenWidth);
 
     float textureYoffset = seg->yOffset;
 
     float progress      = 0.0;
     float remaining     = 1.0;
     float progresStep   = 1 / onScreenWidth;
-    int   column        = SCREENCENTERX + SCREENWIDTH * (drawStartY/drawStartX) / 2;
+    int   column        = SCREENCENTERX - SCREENWIDTH * (drawStartY/drawStartX) / 2;
 
     float texOverXstart = textureXstart / drawStartX;
     float texOverXend   = textureXend   / drawEndX;
@@ -248,7 +276,7 @@ void drawSegment(FrameBuffer* clipping, Segment* seg, Player* pov)
     float inverseXend   = 1.0 / drawEndX;
     float inverseXstep  =  (inverseXend - inverseXstart) / onScreenWidth;
 
-    float roomHeight          = seg->sectorLeft->roomHeight;
+    float roomHeight          = seg->sectorRight->roomHeight;
     float textureTrueTop      = textureHeight - textureYoffset - roomHeight;
     float textureTrueBottom   = textureHeight - textureYoffset;
     int*  fullClippingPointer = &(clipping->full[column*2]);
@@ -571,6 +599,18 @@ void drawSegment(FrameBuffer* clipping, Segment* seg, Player* pov)
     return;
 }
 
+void drawBspLeaf(FrameBuffer* clipping, BspLeaf* leaf, Player* pov)
+{
+    int      segSize = sizeof(BspLeaf);
+    Segment** segList = leaf->segList;
+    while(*segList != NULL)
+    {
+        drawSegment(clipping, *segList, pov);
+        segList += segSize;
+    }
+
+    return;
+}
 
 void main(void)
 {
@@ -578,13 +618,14 @@ void main(void)
     Texture     emptyTexture;
     Sector      Room0;
     Sector      Room1;
+    Segment     wall0;
     Segment     wall1;
-    Segment     wall2;
     FrameBuffer drawClip;
     FrameBuffer cleanBuffer;
+    BspLeaf     leaf0;
 
     user.xPos = 0.00;
-    user.yPos = 1.00;
+    user.yPos = 0.00;
     user.zPos = 2.00;
     user.direction = 0.0;
     user.dirSin = sin(user.direction);
@@ -604,31 +645,31 @@ void main(void)
 
     Room1 = Room0;
 
-    wall1.xPos        =  1.0;
-    wall1.yPos        = -13.0;
-    wall1.dx          =  5.0;
-    wall1.dy          =  14.0;
+    wall0.xPos        =  16.0;
+    wall0.yPos        =  16.0;
+    wall0.dx          =   0.0;
+    wall0.dy          =  -32.0;
+    wall0.length      = sqrt(wall0.dx * wall0.dx + wall0.dy * wall0.dy);
+    wall0.sectorRight  = &Room0;
+    wall0.sectorRight = &Room1;
+    wall0.bottom      = &emptyTexture;
+    wall0.middle      = &emptyTexture;
+    wall0.top         = &emptyTexture;
+    wall0.yOffset     =   0.7;
+    wall0.xOffset     =   1.0;
+
+    wall1.xPos        =  16.0;
+    wall1.yPos        = -32.0;
+    wall1.dx          =   0.0;
+    wall1.dy          =  32.0;
     wall1.length      = sqrt(wall1.dx * wall1.dx + wall1.dy * wall1.dy);
-    wall1.sectorLeft  = &Room0;
-    wall1.sectorRight = &Room1;
+    wall1.sectorRight = &Room0;
+    wall1.sectorLeft  = &Room1;
     wall1.bottom      = &emptyTexture;
     wall1.middle      = &emptyTexture;
     wall1.top         = &emptyTexture;
-    wall1.yOffset     =  0.7;
+    wall1.yOffset     =  0.0;
     wall1.xOffset     =  0.0;
-
-    wall2.xPos        =  9.0;
-    wall2.yPos        =  -3.0;
-    wall2.dx          = -2.0;
-    wall2.dy          =  11.0;
-    wall2.length      = sqrt(wall2.dx * wall2.dx + wall2.dy * wall2.dy);
-    wall2.sectorLeft  = &Room0;
-    wall2.sectorRight = &Room1;
-    wall2.bottom      = &emptyTexture;
-    wall2.middle      = &emptyTexture;
-    wall2.top         = &emptyTexture;
-    wall2.yOffset     =  0.0;
-    wall2.xOffset     =  0.0;
 
     for(int i = 0; i < SCREENWIDTH; i++)
     {
@@ -637,18 +678,21 @@ void main(void)
     for(int i = 0; i < SCREENWIDTH*2; i += 2)
     {
         drawClip.full[i]   = SCREENHEIGHT - 1;
-        drawClip.full[i+1] = 60;
+        drawClip.full[i+1] = 0;
     }
     cleanBuffer = drawClip;
 
+    Segment*[3] leaf0List = {&wall0, &wall1, NULL};
+    leaf0.segList = &(leaf0List[0]);
     float speedX;
     float speedY;
 
     while(true)
     {
         clear_screen(color_gray);
-        drawSegment(&drawClip, &wall1, &user);
-        drawSegment(&drawClip, &wall2, &user);
+        drawSegment(&drawClip, &wall0, &user);
+        //drawSegment(&drawClip, &wall1, &user);
+        //drawBspLeaf(&drawClip, &leaf0, &user);
 
         if(gamepad_button_b() > 0)
             user.direction += 0.001 * gamepad_button_b();
@@ -662,16 +706,16 @@ void main(void)
         speedY = 0.0;
 
         if(gamepad_left() > 0)
-            speedY -= 0.01 * gamepad_left();
+            speedY += 0.005 * gamepad_left();
         if(gamepad_right() > 0)
-            speedY += 0.01 * gamepad_right();
+            speedY -= 0.005 * gamepad_right();
         if(gamepad_up() > 0)
-            speedX += 0.01 * gamepad_up();
+            speedX += 0.005 * gamepad_up();
         if(gamepad_down() > 0)
-            speedX -= 0.01 * gamepad_down();
+            speedX -= 0.005 * gamepad_down();
 
-        user.xPos += user.dirCos * speedX + user.dirSin * speedY;
-        user.yPos += user.dirCos * speedY - user.dirSin * speedX;
+        user.xPos += user.dirCos * speedX - user.dirSin * speedY;
+        user.yPos += user.dirCos * speedY + user.dirSin * speedX;
         drawClip = cleanBuffer;
         end_frame();
     }
