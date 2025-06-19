@@ -10,7 +10,8 @@
 #define SCREENHEIGHT  320
 #define SCREENCENTERY 160.0
 
-#define CURRENTTOP    R10
+#define RIGHT         true
+#define LEFT          false
 
 struct Player
 {
@@ -72,7 +73,7 @@ struct BspBranch
     BspBranch* parentNode;
     BspBranch* leftNode;
     BspBranch* rightNode;
-    BspLeaf*   currentLeaf;
+    BspLeaf*   leaf;
 };
 
 struct FrameBuffer
@@ -608,11 +609,21 @@ void drawBspLeaf(FrameBuffer* clipping, BspLeaf* leaf, Player* pov)
 }
 
 
-void locateBsp(BspBranch* rootNode, float xPos, float yPos)
+BspBranch* locateBsp(BspBranch* currentNode, float xPos, float yPos)
 {
+    while(currentNode->leftNode != NULL)
+    {
+        if(onRightSideBranch(currentNode, xPos, yPos))
+        {
+            currentNode = currentNode->leftNode;
+        }
+        else
+        {
+            currentNode = currentNode->rightNode;
+        }
+    }
 
-
-    return;
+    return currentNode;
 }
 
 
@@ -633,6 +644,9 @@ void main(void)
     BspLeaf     leaf0;
     BspLeaf     leaf1;
     BspLeaf     leaf2;
+    BspBranch   rootNode;
+    BspBranch   node0;
+    BspBranch   node1;
 
     user.xPos = 0.00;
     user.yPos = 0.00;
@@ -753,6 +767,36 @@ void main(void)
     Segment*[1] leaf2List = {NULL};
     leaf2.segList = &(leaf2List[0]);
 
+    rootNode.HyperX     =  16.0;
+    rootNode.HyperY     =  48.0;
+    rootNode.HyperDx    = -32.0;
+    rootNode.HyperDy    = -32.0;
+    rootNode.BranchSide = RIGHT;
+    rootNode.leftNode   = &node0;
+    rootNode.rightNode  = &node1;
+    rootNode.parentNode = NULL;
+    rootNode.leaf       = NULL;
+
+    node0.HyperX     =   0.0;
+    node0.HyperY     =   0.0;
+    node0.HyperDx    =   0.0;
+    node0.HyperDy    =   0.0;
+    node0.BranchSide = RIGHT;
+    node0.leftNode   = NULL;
+    node0.rightNode  = NULL;
+    node0.parentNode = &rootNode;
+    node0.leaf       = &leaf1;
+
+    node1.HyperX     =  16.0;
+    node1.HyperY     =  16.0;
+    node1.HyperDx    = -32.0;
+    node1.HyperDy    = -32.0;
+    node1.BranchSide = LEFT;
+    node1.leftNode   = NULL;
+    node1.rightNode  = NULL;
+    node1.parentNode = &rootNode;
+    node1.leaf       = &leaf0;
+
     float speedX;
     float speedY;
 
@@ -765,9 +809,14 @@ void main(void)
         //drawSegment(&drawClip, &wall3, &user);
         //drawSegment(&drawClip, &wall4, &user);
         //drawSegment(&drawClip, &wall5, &user);
+        drawBspLeaf(
+            &drawClip,
+            locateBsp(&rootNode, user.xPos, user.yPos)->leaf,
+            &user
+        );
         //drawBspLeaf(&drawClip, &leaf0, &user);
-        drawBspLeaf(&drawClip, &leaf1, &user);
-        drawBspLeaf(&drawClip, &leaf2, &user);
+        //drawBspLeaf(&drawClip, &leaf1, &user);
+        //drawBspLeaf(&drawClip, &leaf2, &user);
 
         if(gamepad_button_b() > 0)
             user.direction += 0.001 * gamepad_button_b();
