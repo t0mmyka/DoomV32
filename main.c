@@ -626,6 +626,47 @@ BspBranch* locateBsp(BspBranch* currentNode, float xPos, float yPos)
     return currentNode;
 }
 
+void bspRender(
+    FrameBuffer* clipping,
+    BspBranch* currentNode,
+    Player* pov
+)
+{
+    BspBranch* tempBranch;
+    bool  side;
+    float xPos = pov->xPos;
+    float yPos = pov->yPos;
+
+    if(currentNode->leaf != NULL)
+    {
+        drawBspLeaf(clipping, currentNode->leaf, pov);
+    }
+
+    side = onRightSideBranch(currentNode, xPos, yPos);
+
+    if(side == RIGHT)
+    {
+        tempBranch = currentNode->rightNode;
+        if(tempBranch != NULL)
+            bspRender(clipping, tempBranch, pov);
+
+        tempBranch = currentNode->leftNode;
+        if(currentNode->leftNode != NULL)
+            bspRender(clipping, tempBranch,  pov);
+    }
+    else
+    {
+        tempBranch = currentNode->leftNode;
+        if(currentNode->leftNode != NULL)
+            bspRender(clipping, tempBranch,  pov);
+
+        tempBranch = currentNode->rightNode;
+        if(tempBranch != NULL)
+            bspRender(clipping, tempBranch, pov);
+    }
+
+    return;
+}
 
 void main(void)
 {
@@ -785,17 +826,17 @@ void main(void)
     node0.leftNode   = NULL;
     node0.rightNode  = NULL;
     node0.parentNode = &rootNode;
-    node0.leaf       = &leaf1;
+    node0.leaf       = &leaf0;
 
-    node1.HyperX     =  16.0;
-    node1.HyperY     =  16.0;
-    node1.HyperDx    = -32.0;
-    node1.HyperDy    = -32.0;
+    node1.HyperX     =  0.0;
+    node1.HyperY     =  0.0;
+    node1.HyperDx    =  0.0;
+    node1.HyperDy    =  0.0;
     node1.BranchSide = LEFT;
     node1.leftNode   = NULL;
     node1.rightNode  = NULL;
     node1.parentNode = &rootNode;
-    node1.leaf       = &leaf0;
+    node1.leaf       = &leaf1;
 
     float speedX;
     float speedY;
@@ -809,11 +850,12 @@ void main(void)
         //drawSegment(&drawClip, &wall3, &user);
         //drawSegment(&drawClip, &wall4, &user);
         //drawSegment(&drawClip, &wall5, &user);
-        drawBspLeaf(
+        /*drawBspLeaf(
             &drawClip,
             locateBsp(&rootNode, user.xPos, user.yPos)->leaf,
             &user
-        );
+        );*/
+        bspRender(&drawClip, &rootNode, &user);
         //drawBspLeaf(&drawClip, &leaf0, &user);
         //drawBspLeaf(&drawClip, &leaf1, &user);
         //drawBspLeaf(&drawClip, &leaf2, &user);
