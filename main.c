@@ -154,6 +154,183 @@ bool onRightSideBranch(BspBranch* branch, float x, float y)
 
 
 
+void drawPortalClipBottom(WallDrawData* data)
+{
+    float        xStart        = data->xStart;
+    float        xEnd          = data->xEnd;
+    float        yStart        = data->yStart;
+    float        yEnd          = data->yEnd;
+    float        zTop          = data->zTop;
+    float        zPos          = data->zPos;
+    FrameBuffer* clipping      = data->clipping;
+
+
+    float onScreenWidth = SCREENWIDTH * (yStart/xStart - yEnd/xEnd) / 2;
+    if(onScreenWidth == 0.0)
+    {
+        return;
+    }
+
+    float topStart    =  SCREENCENTERY
+                      - (SCREENHEIGHT * (zTop    - zPos) / xStart);
+
+    float topEnd      = SCREENCENTERY
+                      - (SCREENHEIGHT * (zTop    - zPos) / xEnd);
+
+
+    float currentTop = topStart;
+    float topStep    = (topEnd - topStart) / onScreenWidth;
+
+    float progress      = 0.0;
+    float progresStep   = 1 / onScreenWidth;
+    int   column        = SCREENCENTERX - SCREENWIDTH * (yStart/xStart) / 2;
+
+    int*  fullClippingPointer = &(clipping->full[column*2]);
+    int*  fastClippingPointer = &(clipping->fast[column]);
+
+    asm
+    {
+        //Initialize registers
+        "mov  R6,  {fastClippingPointer}"
+        "mov  R7,  {progress}"
+        "mov  R8,  {topStep}"
+        "mov  R9,  {progresStep}"
+        "mov  R10, {currentTop}"
+        "mov  R13, {fullClippingPointer}"
+
+        //Loop start
+        "_BCwall_while_loop_start:"
+
+        //Check loop condition
+        "mov  R0,  R7"
+        "flt  R0,  1.0"
+        "jf   R0,  _BCwall_while_loop_end"
+
+        //Check fast clipping
+        "mov  R0,  [R6]"
+        "jt   R0,  _BCwall_while_loop_iterators"
+
+        //Get bottom clipping
+        "mov  R12, [R13]"
+        "iadd R13, 1"
+
+        "cif  R12"
+        "fmin R12, R10"
+        "cfi  R12"
+        "mov  R0, [R13]"
+        "imax R12, R0"
+        "isub R13, 1"
+        "mov  [R13], R12"
+
+
+        "_BCwall_while_loop_iterators:"
+
+        // While iterators
+        "iadd R6,  1"
+        "fadd R7,  R9"
+        "fadd R10, R8"
+        "iadd R13, 2"
+
+
+        "jmp  _BCwall_while_loop_start"
+
+        "_BCwall_while_loop_end:"
+    }
+
+    return;
+}
+
+
+
+
+void drawPortalClipTop(WallDrawData* data)
+{
+    float        xStart        = data->xStart;
+    float        xEnd          = data->xEnd;
+    float        yStart        = data->yStart;
+    float        yEnd          = data->yEnd;
+    float        zBottom       = data->zBottom;
+    float        zPos          = data->zPos;
+    FrameBuffer* clipping      = data->clipping;
+
+
+    float onScreenWidth = SCREENWIDTH * (yStart/xStart - yEnd/xEnd) / 2;
+    if(onScreenWidth == 0.0)
+    {
+        return;
+    }
+
+    float bottomStart =  SCREENCENTERY
+                      - (SCREENHEIGHT * (zBottom - zPos) / xStart);
+
+    float bottomEnd   = SCREENCENTERY
+                      - (SCREENHEIGHT * (zBottom - zPos) / xEnd);
+
+    float currentBottom = bottomStart;
+    float bottomStep    = (bottomEnd - bottomStart) / onScreenWidth;
+
+    float progress      = 0.0;
+    float progresStep   = 1 / onScreenWidth;
+    int   column        = SCREENCENTERX - SCREENWIDTH * (yStart/xStart) / 2;
+
+    int*  fullClippingPointer = &(clipping->full[column*2]);
+    int*  fastClippingPointer = &(clipping->fast[column]);
+
+    asm
+    {
+        //Initialize registers
+        "mov  R6,  {fastClippingPointer}"
+        "mov  R7,  {progress}"
+        "mov  R8,  {bottomStep}"
+        "mov  R9,  {progresStep}"
+        "mov  R10, {currentBottom}"
+        "mov  R13, {fullClippingPointer}"
+
+        //Loop start
+        "_TCwall_while_loop_start:"
+
+        //Check loop condition
+        "mov  R0,  R7"
+        "flt  R0,  1.0"
+        "jf   R0,  _TCwall_while_loop_end"
+
+        //Check fast clipping
+        "mov  R0,  [R6]"
+        "jt   R0,  _TCwall_while_loop_iterators"
+
+        //Get bottom clipping
+        "mov  R0,  [R13]"
+        "iadd R13, 1"
+        //Get top clipping
+        "mov  R12, [R13]"
+
+        "cif  R12"
+        "fmax R12, R10"
+        "cfi  R12"
+        "imin R12, R0"
+        "mov  [R13], R12"
+        "isub R13, 1"
+
+
+        "_TCwall_while_loop_iterators:"
+
+        // While iterators
+        "iadd R6,  1"
+        "fadd R7,  R9"
+        "fadd R10, R8"
+        "iadd R13, 2"
+
+
+        "jmp  _TCwall_while_loop_start"
+
+        "_TCwall_while_loop_end:"
+    }
+
+    return;
+}
+
+
+
 void drawPortalBottom(WallDrawData* data)
 {
     float        xStart        = data->xStart;
@@ -1370,11 +1547,6 @@ void drawSegment(FrameBuffer* clipping, Segment* seg, Player* pov)
     float povX = pov->xPos;
     float povY = pov->yPos;
 
-    if(!onRightSideSeg(seg, povX, povY)) //Backface culling
-    {
-        return;
-    }
-
     data segStartX;
     data segEndX;
 
@@ -1384,27 +1556,65 @@ void drawSegment(FrameBuffer* clipping, Segment* seg, Player* pov)
     float segDeltaX;
     float segDeltaY;
 
-    segStartX.fl = pov->dirCos * (seg->xPos - povX)
-                 + pov->dirSin * (seg->yPos - povY);
+    bool backFace = false;
 
-    segDeltaX    = pov->dirCos * seg->dx
-                 + pov->dirSin * seg->dy;
-
-    segEndX.fl   = segStartX.fl + segDeltaX;
-
-    if((segStartX.in & segEndX.in) < 0) //Behind culling
+    if(!onRightSideSeg(seg, povX, povY)) //Backface culling
     {
-        return;
+        if(seg->isPortal)
+        {
+            segEndX.fl = pov->dirCos * (seg->xPos - povX)
+                        + pov->dirSin * (seg->yPos - povY);
+
+            segDeltaX    = pov->dirCos * seg->dx
+                        + pov->dirSin * seg->dy;
+
+            segStartX.fl   = segEndX.fl + segDeltaX;
+
+            if((segStartX.in & segEndX.in) < 0) //Behind culling
+            {
+                return;
+            }
+
+
+            segEndY.fl = pov->dirCos * (seg->yPos - povY)
+                        - pov->dirSin * (seg->xPos - povX);
+
+            segDeltaY    = pov->dirCos * seg->dy
+                        - pov->dirSin * seg->dx;
+
+            segStartY.fl   = segEndY.fl + segDeltaY;
+
+            backFace = true;
+        }
+        else
+        {
+            return;
+        }
     }
+    else
+    {
+        segStartX.fl = pov->dirCos * (seg->xPos - povX)
+                     + pov->dirSin * (seg->yPos - povY);
+
+        segDeltaX    = pov->dirCos * seg->dx
+                     + pov->dirSin * seg->dy;
+
+        segEndX.fl   = segStartX.fl + segDeltaX;
+
+        if((segStartX.in & segEndX.in) < 0) //Behind culling
+        {
+            return;
+        }
 
 
-    segStartY.fl = pov->dirCos * (seg->yPos - povY)
-                 - pov->dirSin * (seg->xPos - povX);
+        segStartY.fl = pov->dirCos * (seg->yPos - povY)
+                     - pov->dirSin * (seg->xPos - povX);
 
-    segDeltaY    = pov->dirCos * seg->dy
-                 - pov->dirSin * seg->dx;
+        segDeltaY    = pov->dirCos * seg->dy
+                     - pov->dirSin * seg->dx;
 
-    segEndY.fl   = segStartY.fl + segDeltaY;
+        segEndY.fl   = segStartY.fl + segDeltaY;
+    }
 
     data temp;
     temp.in = segStartX.in | 0x80000000;
@@ -1467,7 +1677,31 @@ void drawSegment(FrameBuffer* clipping, Segment* seg, Player* pov)
 
     WallDrawData drawData;
 
-    if(seg->isPortal == false)
+    if(backFace == true)
+    {
+        drawData.xStart         = drawStartX;
+        drawData.xEnd           = drawEndX;
+        drawData.yStart         = drawStartY;
+        drawData.yEnd           = drawEndY;
+        drawData.textureStart   = textureXstart;
+        drawData.textureEnd     = textureXend;
+        drawData.zBottom        = seg->sectorRight->floorHeight;
+        drawData.zTop           = seg->sectorLeft->floorHeight;
+        drawData.zPos           = pov->zPos;
+        drawData.textureWidth   = seg->bottom->width;
+        drawData.textureHeight  = seg->bottom->height;
+        drawData.yOffset        = seg->yOffset;
+        drawData.clipping       = clipping;
+
+        drawPortalClipBottom(&drawData);
+
+        drawData.zBottom        = seg->sectorLeft->ceilingHeight;
+        drawData.zTop           = seg->sectorRight->ceilingHeight;
+        drawData.zPos           = pov->zPos;
+
+        drawPortalClipTop(&drawData);
+    }
+    else if(seg->isPortal == false)
     {
         drawData.xStart         = drawStartX;
         drawData.xEnd           = drawEndX;
@@ -1505,6 +1739,9 @@ void drawSegment(FrameBuffer* clipping, Segment* seg, Player* pov)
 
         drawData.zBottom        = seg->sectorLeft->ceilingHeight;
         drawData.zTop           = seg->sectorRight->ceilingHeight;
+        drawData.yOffset        = seg->yOffset
+                                + seg->sectorLeft->ceilingHeight
+                                - seg->sectorRight->floorHeight;
         drawData.zPos           = pov->zPos;
 
         drawPortalTop(&drawData);
@@ -1649,8 +1886,8 @@ void main(void)
     Room0.floor         = &emptyTexture;
     Room0.ceiling       = &emptyTexture;
 
-    Room1.floorHeight   =  4.0;
-    Room1.ceilingHeight = 28.0;
+    Room1.floorHeight   =  6.0;
+    Room1.ceilingHeight = 26.0;
     Room1.roomHeight    = Room1.ceilingHeight - Room1.floorHeight;
     Room1.floor         = &emptyTexture;
     Room1.ceiling       = &emptyTexture;
@@ -1809,16 +2046,16 @@ void main(void)
     wall10.yOffset     =    0.0;
     wall10.xOffset     =    0.0;
 
-    Segment*[5] leaf0List = {&wall0, &wall1, &wall2, &wall3, NULL};
+    Segment*[5] leaf0List = {&wall3, &wall0, &wall1, &wall2, NULL};
     leaf0.segList = &(leaf0List[0]);
 
-    Segment*[3] leaf1List = {&wall4, &wall5, NULL};
+    Segment*[3] leaf1List = {&wall5, &wall4, NULL};
     leaf1.segList = &(leaf1List[0]);
 
-    Segment*[4] leaf2List = {&wall6, &wall7, &wall8, NULL};
+    Segment*[4] leaf2List = {&wall8, &wall6, &wall7, NULL};
     leaf2.segList = &(leaf2List[0]);
 
-    Segment*[3] leaf3List = {&wall9, &wall10, NULL};
+    Segment*[3] leaf3List = {&wall10, &wall9, NULL};
     leaf3.segList = &(leaf3List[0]);
 
     rootNode.HyperX     =   76.8;
@@ -1896,23 +2133,8 @@ void main(void)
 
     while(true)
     {
-        clear_screen(color_gray);
-        //drawSegment(&drawClip, &wall0, &user);
-        //drawSegment(&drawClip, &wall1, &user);
-        //drawSegment(&drawClip, &wall2, &user);
-        //drawSegment(&drawClip, &wall3, &user);
-        //drawSegment(&drawClip, &wall4, &user);
-        //drawSegment(&drawClip, &wall5, &user);
-        /*drawBspLeaf(
-            &drawClip,
-            locateBsp(&rootNode, user.xPos, user.yPos)->leaf,
-            &user
-        );*/
+        clear_screen(color_black);
         bspRender(&drawClip, &rootNode, &user);
-        //drawBspLeaf(&drawClip, &leaf0, &user);
-        //drawBspLeaf(&drawClip, &leaf1, &user);
-        //drawBspLeaf(&drawClip, &leaf2, &user);
-        //drawBspLeaf(&drawClip, &leaf3, &user);
 
         if(gamepad_button_b() > 0)
             user.direction += 0.001 * gamepad_button_b();
@@ -1936,7 +2158,7 @@ void main(void)
 
         user.xPos += user.dirCos * speedX - user.dirSin * speedY;
         user.yPos += user.dirCos * speedY + user.dirSin * speedX;
-        user.zPos =  16.0 + 15.0*cos((float)TIME / 30.0);
+        user.zPos =  16.0 + 1.5*cos((float)TIME / 300.0);
 
         drawClip = cleanBuffer;
 
