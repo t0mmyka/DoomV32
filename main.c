@@ -113,6 +113,7 @@ struct WallDrawData
     FrameBuffer* clipping;
     int          floorColor;
     int          ceilingColor;
+    int          textureID;
 };
 
 bool onRightSideSeg(Segment* seg, float x, float y)
@@ -398,6 +399,8 @@ void drawPortalBottom(WallDrawData* data)
     float        yOffset       = data->yOffset;
     FrameBuffer* clipping      = data->clipping;
     float        roomHeight    = zTop - zBottom;
+    int          floorColor    = data->floorColor;
+    int          textureNUM    = data->textureID;
 
 
     float onScreenWidth = ceil((float)SCREENWIDTH * (yStart/xStart/2.0))
@@ -454,6 +457,12 @@ void drawPortalBottom(WallDrawData* data)
     int   textureFullTop;
     int   textureFullBottom;
 
+
+    select_texture(textureNUM);
+    select_region(0);
+
+    set_drawing_scale(1.0, 1.0);
+
     asm
     {
         //Initialize registers
@@ -486,19 +495,50 @@ void drawPortalBottom(WallDrawData* data)
         "mov  R12, [R13]"
         "iadd R13, 1"
 
-        //Check if top is offscreen
+        //Check if top is below screen
         "mov  R0,  R10"
         "mov  R3,  R12"
         "cif  R3"
         "fgt  R0,  R3"
         "jt   R0,  _Btop_offscreen"
 
-        //Check if bottom is offscreen
+        //Check if bottom is above screen
         "mov  R0,  R9"
         "mov  R2,  [R13]"
         "cif  R2"
         "flt  R0,  R2"
         "jt   R0,  _Bbottom_offsecreen"
+
+        //Set X drawing point
+        "out  GPU_DrawingPointX,  R11"
+
+        //Select floor settings
+        "in   R0,  GPU_SelectedTexture"
+        "out  GPU_SelectedTexture, -1"
+        "out  GPU_SelectedRegion, 256"
+        "mov  R1,  {floorColor}"
+        "out  GPU_MultiplyColor, R1"
+
+        //Get floor height
+        "mov  R1,  R12"
+        "cif  R1"
+        "fsub R1,  R10"
+        "cfi  R1"
+        "cif  R1"
+        "out  GPU_DrawingScaleY, R1"
+
+        //Draw floor
+        "mov  R1,  R10"
+        "cfi  R1"
+        "out  GPU_DrawingPointY, R1"
+        "out  GPU_Command, GPUCommand_DrawRegionZoomed"
+
+        //Reset settings
+        "out  GPU_MultiplyColor, 0xFFFFFFFF"
+        "mov  R0,  {textureNUM}"
+        "out  GPU_SelectedTexture, R0"
+        "out  GPU_SelectedRegion, 0"
+
 
         //Determine currentTextureX
         "mov  R0,  R4"
@@ -512,8 +552,6 @@ void drawPortalBottom(WallDrawData* data)
         "out  GPU_RegionMinX, R0"
         "out  GPU_RegionMaxX, R0"
         "out  GPU_RegionHotspotX, R0"
-
-        "out  GPU_DrawingPointX,  R11"
 
 
         //Check if bottom is clipped
@@ -785,6 +823,8 @@ void drawPortalBottom(WallDrawData* data)
         "_Bwall_while_loop_end:"
     }
 
+    set_multiply_color(color_white);
+
     return;
 }
 
@@ -805,6 +845,8 @@ void drawPortalTop(WallDrawData* data)
     float        yOffset       = data->yOffset;
     FrameBuffer* clipping      = data->clipping;
     float        roomHeight    = zTop - zBottom;
+    int          ceilingColor  = data->ceilingColor;
+    int          textureNUM    = data->textureID;
 
 
     float onScreenWidth = ceil((float)SCREENWIDTH * (yStart/xStart/2.0))
@@ -861,6 +903,12 @@ void drawPortalTop(WallDrawData* data)
     int   textureFullTop;
     int   textureFullBottom;
 
+
+    select_texture(textureNUM);
+    select_region(0);
+
+    set_drawing_scale(1.0, 1.0);
+
     asm
     {
         //Initialize registers
@@ -893,19 +941,49 @@ void drawPortalTop(WallDrawData* data)
         "mov  R12, [R13]"
         "iadd R13, 1"
 
-        //Check if top is offscreen
+        //Check if top is below screen
         "mov  R0,  R10"
         "mov  R3,  R12"
         "cif  R3"
         "fgt  R0,  R3"
         "jt   R0,  _Ttop_offscreen"
 
-        //Check if bottom is offscreen
+        //Check if bottom is above screen
         "mov  R0,  R9"
         "mov  R1,  [R13]"
         "cif  R1"
         "flt  R0,  R1"
         "jt   R0,  _Tbottom_offsecreen"
+
+        //Set X drawing point
+        "out  GPU_DrawingPointX,  R11"
+
+        //Select ceiling settings
+        "in   R0,  GPU_SelectedTexture"
+        "out  GPU_SelectedTexture, -1"
+        "out  GPU_SelectedRegion, 256"
+        "mov  R2,  {ceilingColor}"
+        "out  GPU_MultiplyColor, R2"
+
+        //Get ceiling height
+        "mov  R2,  R9"
+        "fsub R2,  R1"
+        "cfi  R2"
+        "cif  R2"
+        "out  GPU_DrawingScaleY, R2"
+
+        //Draw ceiling
+        "mov  R2,  R1"
+        "cfi  R2"
+        "out  GPU_DrawingPointY, R2"
+        "out  GPU_Command, GPUCommand_DrawRegionZoomed"
+
+        //Reset settings
+        "out  GPU_MultiplyColor, 0xFFFFFFFF"
+        "mov  R0,  {textureNUM}"
+        "out  GPU_SelectedTexture, R0"
+        "out  GPU_SelectedRegion, 0"
+
 
         //Determine currentTextureX
         "mov  R0,  R4"
@@ -919,8 +997,6 @@ void drawPortalTop(WallDrawData* data)
         "out  GPU_RegionMinX, R0"
         "out  GPU_RegionMaxX, R0"
         "out  GPU_RegionHotspotX, R0"
-
-        "out  GPU_DrawingPointX,  R11"
 
 
         //Check if bottom is clipped
@@ -1192,6 +1268,8 @@ void drawPortalTop(WallDrawData* data)
         "_Twall_while_loop_end:"
     }
 
+    set_multiply_color(color_white);
+
     return;
 }
 
@@ -1212,6 +1290,7 @@ void drawWall(WallDrawData* data)
     float        yOffset       = data->yOffset;
     FrameBuffer* clipping      = data->clipping;
     float        roomHeight    = zTop - zBottom;
+    int          textureNUM    = data->textureID;
 
 
     float onScreenWidth = ceil((float)SCREENWIDTH * (yStart/xStart/2.0))
@@ -1267,6 +1346,11 @@ void drawWall(WallDrawData* data)
     int   screenFullBottom;
     int   textureFullTop;
     int   textureFullBottom;
+
+
+    select_texture(textureNUM);
+    set_drawing_scale(1.0, 1.0);
+    select_region(0);
 
     asm
     {
@@ -1595,6 +1679,8 @@ void drawWall(WallDrawData* data)
         "_wall_while_loop_end:"
     }
 
+    set_multiply_color(color_white);
+
     return;
 }
 
@@ -1727,11 +1813,6 @@ void drawSegment(FrameBuffer* clipping, Segment* seg, Player* pov)
         drawEndY    = segEndY.fl;
         textureXend = seg->xOffset + seg->length;
     }
-
-    select_texture(seg->middle->textureID);
-    set_drawing_scale(1.0, 1.0);
-    select_region(0);
-
     WallDrawData drawData;
 
     if(backFace == true)
@@ -1775,6 +1856,7 @@ void drawSegment(FrameBuffer* clipping, Segment* seg, Player* pov)
         drawData.textureHeight  = seg->middle->height;
         drawData.yOffset        = seg->yOffset;
         drawData.clipping       = clipping;
+        drawData.textureID      = seg->middle->textureID;
 
         drawWall(&drawData);
     }
@@ -1793,6 +1875,8 @@ void drawSegment(FrameBuffer* clipping, Segment* seg, Player* pov)
         drawData.textureHeight  = seg->bottom->height;
         drawData.yOffset        = seg->yOffset;
         drawData.clipping       = clipping;
+        drawData.textureID      = seg->bottom->textureID;
+        drawData.floorColor     = seg->sectorRight->floorColor;
 
         drawPortalBottom(&drawData);
 
@@ -1802,6 +1886,8 @@ void drawSegment(FrameBuffer* clipping, Segment* seg, Player* pov)
                                 + seg->sectorLeft->ceilingHeight
                                 - seg->sectorRight->floorHeight;
         drawData.zPos           = pov->zPos;
+        drawData.textureID      = seg->top->textureID;
+        drawData.ceilingColor   = seg->sectorRight->ceilingColor;
 
         drawPortalTop(&drawData);
     }
@@ -1933,15 +2019,15 @@ void main(void)
     for(int i = 0; i < SCREENWIDTH*2; i += 2)
     {
         drawClip.full[i]   = SCREENHEIGHT - 1;
-        drawClip.full[i+1] = 0;
+        drawClip.full[i+1] = 10;
     }
     cleanBuffer = drawClip;
 
     Room0.floorHeight   =  0.0;
     Room0.ceilingHeight = 32.0;
     Room0.roomHeight    = Room0.ceilingHeight - Room0.floorHeight;
-    Room0.floorColor    = 0xFF888888;
-    Room0.ceilingColor  = 0xFF888888;
+    Room0.floorColor    = 0xFF88FF88;
+    Room0.ceilingColor  = 0xFFFFFF88;
 
     Room1.floorHeight   =  6.0;
     Room1.ceilingHeight = 26.0;
