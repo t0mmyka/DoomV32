@@ -171,6 +171,170 @@ bool onRightSideBranch(BspBranch* branch, float x, float y)
 }
 
 
+void drawPortalClip(WallDrawData* data)
+{
+    float        xStart        = data->xStart;
+    float        xEnd          = data->xEnd;
+    float        yStart        = data->yStart;
+    float        yEnd          = data->yEnd;
+    float        zTop          = data->zTop;
+    float        zBottom       = data->zBottom;
+    float        zPos          = data->zPos;
+    FrameBuffer* clipping      = data->clipping;
+    int          floorColor    = data->floorColor;
+    int          ceilingColor  = data->ceilingColor;
+
+    int   columnStart = min(floor((yStart/xStart - 1.0) * -320.0), 639);
+    int   columnEnd   = min(floor((yEnd/xEnd - 1.0) * -320.0), 639);
+
+    float onScreenWidth = (float)(columnEnd - columnStart);
+    if(onScreenWidth == 0.0)
+    {
+        return;
+    }
+
+    float topStart    =  SCREENCENTERY
+                      - (SCREENHEIGHT * (zTop    - zPos) / xStart);
+
+    float topEnd      = SCREENCENTERY
+                      - (SCREENHEIGHT * (zTop    - zPos) / xEnd);
+
+    float bottomStart =  SCREENCENTERY
+                      - (SCREENHEIGHT * (zBottom - zPos) / xStart);
+
+    float bottomEnd   = SCREENCENTERY
+                      - (SCREENHEIGHT * (zBottom - zPos) / xEnd);
+
+    float currentTop = topStart;
+    float topStep    = (topEnd - topStart) / onScreenWidth;
+
+    float currentBottom = bottomStart;
+    float bottomStep    = (bottomEnd - bottomStart) / onScreenWidth;
+
+
+    int*  fullClippingPointer = &(clipping->full[columnStart*2]);
+    int*  fastClippingPointer = &(clipping->fast[columnStart]);
+
+
+    select_texture(-1);
+    set_drawing_scale(1.0, 1.0);
+    select_region(256);
+
+    asm
+    {
+        //Initialize registers
+        "mov  R6,  {columnStart}"
+        "mov  R7,  {fastClippingPointer}"
+        "mov  R8,  {onScreenWidth}"
+        "cfi  R8"
+        "iadd R8,  1"
+        "mov  R9,  {currentBottom}"
+        "mov  R10, {currentTop}"
+        "mov  R13, {fullClippingPointer}"
+
+        //Loop start
+        "_Cwall_while_loop_start:"
+
+        //Check fast clipping
+        "mov  R0,  [R7]"
+        "jt   R0,  _Cwall_while_loop_iterators"
+
+        //Set x drawing point
+        "out  GPU_DrawingPointX, R6"
+
+        //Get bottom clipping
+        "mov  R5,  [R13]"
+        "iadd R13, 1"
+
+        //Get top clipping
+        "mov  R4,  [R13]"
+        "isub R13, 1"
+
+        //Test if floor is clipped
+        "mov  R0,  R9"
+        "cfi  R0"
+        "mov  R1,  R0"
+        "igt  R1,  R5"
+        "jt   R1,  _Cfloor_clipped"
+
+        //Set new bottom clipping
+        "imax R0,  R4"
+        "mov  [R13], R0"
+
+        //Get floor height
+        "mov  R1,  R5"
+        "isub R1,  R0"
+        "cif  R1"
+
+        //Draw floor
+        "mov  R3,  {floorColor}"
+        "out  GPU_MultiplyColor, R3"
+        "out  GPU_DrawingScaleY, R1"
+        "out  GPU_DrawingPointY, R0"
+        "out  GPU_Command, GPUCommand_DrawRegionZoomed"
+
+        "_Cfloor_clipped:"
+        "iadd R13, 1"
+
+        //Test if ceiling is clipped
+        "mov  R0,  R10"
+        "cfi  R0"
+        "mov  R1,  R0"
+        "ilt  R1,  R4"
+        "jt   R1,  _Cceiling_clipped"
+
+        //Set new top clipping
+        "imin R0,  R5"
+        "mov  [R13], R0"
+
+        //Get ceiling height
+        "mov  R1,  R0"
+        "isub R1,  R4"
+        "cif  R1"
+
+        //Draw ceiling
+        "mov  R3,  {ceilingColor}"
+        "out  GPU_MultiplyColor, R3"
+        "out  GPU_DrawingScaleY, R1"
+        "out  GPU_DrawingPointY, R4"
+        "out  GPU_Command, GPUCommand_DrawRegionZoomed"
+
+
+        "_Cceiling_clipped:"
+
+        "mov  R0,  [R13]"
+        "isub R13, 1"
+        "mov  R1,  [R13]"
+        "ige  R0,  R1"
+        "jf   R0,  _Cwall_while_loop_iterators"
+
+        "mov  [R7], R0"
+
+
+        "_Cwall_while_loop_iterators:"
+
+        //While iterators
+        "iadd R6,  1"
+        "iadd R7,  1"
+        "isub R8,  1"
+        "mov  R0,  {bottomStep}"
+        "fadd R9,  R0"
+        "mov  R0,  {topStep}"
+        "fadd R10, R0"
+        "iadd R13, 2"
+
+        //Loop condition
+        "jt   R8, _Cwall_while_loop_start"
+
+        "_Cwall_while_loop_end:"
+    }
+
+    set_multiply_color(color_white);
+
+    return;
+}
+
+
 
 void drawPortalClipBottom(WallDrawData* data)
 {
@@ -399,6 +563,8 @@ void drawPortalClipTop(WallDrawData* data)
 
     return;
 }
+
+
 
 
 void drawPortal(
@@ -1322,6 +1488,9 @@ void drawWall(WallDrawData* data)
         "mov  R0,   1"
         "mov  [R1], R0"
 
+        //Set X drawing point
+        "out  GPU_DrawingPointX, R11"
+
         //Get bottom clipping
         "mov  R12, [R13]"
         "iadd R13, 1"
@@ -1339,9 +1508,6 @@ void drawWall(WallDrawData* data)
         "cif  R1"
         "flt  R0,  R1"
         "jt   R0,  _bottom_offsecreen"
-
-        //Set X drawing point
-        "out  GPU_DrawingPointX,  R11"
 
         //Determine currentTextureX
         "mov  R0,  R4"
@@ -1635,9 +1801,62 @@ void drawWall(WallDrawData* data)
         "jmp _wall_while_loop_iterators"
 
 
-        // Go to next full clipping
         "_bottom_offsecreen:"
+
+        //Select floor settings
+        "in   R0,  GPU_SelectedTexture"
+        "out  GPU_SelectedTexture, -1"
+        "out  GPU_SelectedRegion, 256"
+        "mov  R2,  {floorColor}"
+        "out  GPU_MultiplyColor, R2"
+
+        //Get floor height
+        "fsub R1,  R3"
+        "ceil R1"
+        "out  GPU_DrawingScaleY, R1"
+
+        //Draw floor
+        "isub R12,  1"
+        "out  GPU_DrawingPointY, R12"
+        "out  GPU_Command, GPUCommand_DrawRegionZoomed"
+
+        //Reset settings
+        "out  GPU_MultiplyColor, 0xFFFFFFFF"
+        "mov  R0,  {textureNUM}"
+        "out  GPU_SelectedTexture, R0"
+        "out  GPU_SelectedRegion, 0"
+
+        "jmp  _offscreen_end"
+
         "_top_offscreen:"
+
+        //Select ceiling settings
+        "in   R0,  GPU_SelectedTexture"
+        "out  GPU_SelectedTexture, -1"
+        "out  GPU_SelectedRegion, 256"
+        "mov  R2,  {ceilingColor}"
+        "out  GPU_MultiplyColor, R2"
+
+        //Get ceiling height
+        "mov  R1,  [R13]"
+        "cif  R1"
+        "fsub R1,  R3"
+        "ceil R1"
+        "out  GPU_DrawingScaleY, R1"
+
+        //Draw ceiling
+        "isub R12,  1"
+        "out  GPU_DrawingPointY, R12"
+        "out  GPU_Command, GPUCommand_DrawRegionZoomed"
+
+        //Reset settings
+        "out  GPU_MultiplyColor, 0xFFFFFFFF"
+        "mov  R0,  {textureNUM}"
+        "out  GPU_SelectedTexture, R0"
+        "out  GPU_SelectedRegion, 0"
+
+        // Go to next full clipping
+        "_offscreen_end:"
         "iadd R13, 1"
 
 
@@ -1699,8 +1918,8 @@ void drawSegment(FrameBuffer* clipping, Segment* seg, Player* pov)
             segEndX.fl = pov->dirCos * (seg->xPos - povX)
                         + pov->dirSin * (seg->yPos - povY);
 
-            segDeltaX    = pov->dirCos * seg->dx
-                        + pov->dirSin * seg->dy;
+            segDeltaX  = pov->dirCos * seg->dx
+                       + pov->dirSin * seg->dy;
 
             segStartX.fl   = segEndX.fl + segDeltaX;
 
@@ -1711,12 +1930,12 @@ void drawSegment(FrameBuffer* clipping, Segment* seg, Player* pov)
 
 
             segEndY.fl = pov->dirCos * (seg->yPos - povY)
-                        - pov->dirSin * (seg->xPos - povX);
+                       - pov->dirSin * (seg->xPos - povX);
 
-            segDeltaY    = pov->dirCos * seg->dy
-                        - pov->dirSin * seg->dx;
+            segDeltaY  = pov->dirCos * seg->dy
+                       - pov->dirSin * seg->dx;
 
-            segStartY.fl   = segEndY.fl + segDeltaY;
+            segStartY.fl = segEndY.fl + segDeltaY;
 
             backFace = true;
         }
@@ -1815,22 +2034,18 @@ void drawSegment(FrameBuffer* clipping, Segment* seg, Player* pov)
         drawData.textureStart   = textureXstart;
         drawData.textureEnd     = textureXend;
         drawData.zBottom        = seg->sectorRight->floorHeight;
+        drawData.zBottom        = seg->sectorLeft->floorHeight;
         drawData.zTop           = seg->sectorLeft->floorHeight;
+        drawData.zTop           = seg->sectorLeft->ceilingHeight;
         drawData.zPos           = pov->zPos;
         drawData.textureWidth   = seg->bottom->width;
         drawData.textureHeight  = seg->bottom->height;
         drawData.yOffset        = seg->yOffset;
         drawData.clipping       = clipping;
         drawData.floorColor     = seg->sectorLeft->floorColor;
-
-        drawPortalClipBottom(&drawData);
-
-        drawData.zBottom        = seg->sectorLeft->ceilingHeight;
-        drawData.zTop           = seg->sectorRight->ceilingHeight;
-        drawData.zPos           = pov->zPos;
         drawData.ceilingColor   = seg->sectorLeft->ceilingColor;
 
-        drawPortalClipTop(&drawData);
+        drawPortalClip(&drawData);
     }
     else if(seg->isPortal == false)
     {
@@ -1872,12 +2087,22 @@ void drawSegment(FrameBuffer* clipping, Segment* seg, Player* pov)
         drawData.floorColor     = seg->sectorRight->floorColor;
         drawData.ceilingColor   = seg->sectorRight->ceilingColor;
 
-        drawPortal(
-            &drawData,
-            seg->sectorLeft->floorHeight,
-            seg->sectorLeft->ceilingHeight,
-            seg->top->textureID
-        );
+        if(
+            seg->sectorRight->floorHeight != seg->sectorLeft->floorHeight ||
+            seg->sectorRight->ceilingHeight != seg->sectorLeft->ceilingHeight
+        )
+        {
+            drawPortal(
+                &drawData,
+                seg->sectorLeft->floorHeight,
+                seg->sectorLeft->ceilingHeight,
+                seg->top->textureID
+            );
+        }
+        else
+        {
+            drawPortalClip(&drawData);
+        }
     }
 
     inputWait();
@@ -2268,9 +2493,7 @@ void main(void)
 
     while(true)
     {
-        clear_screen(color_black);
-
-        bspRender(&drawClip, &rootNode, &user);
+        clear_screen(color_orange);
 
         if(gamepad_button_b() > 0)
             user.direction += 0.001 * gamepad_button_b();
@@ -2295,12 +2518,15 @@ void main(void)
         user.xPos += user.dirCos * speedX - user.dirSin * speedY;
         user.yPos += user.dirCos * speedY + user.dirSin * speedX;
         user.zPos =  16.0 + 1.5*cos((float)TIME / 300.0);
-        Room1.floorHeight = 8.0 - 8.0*sin((float)TIME / 60.0);
-        Room1.ceilingHeight = 24.0 + 8.0*sin((float)TIME / 60.0);
+        Room1.floorHeight = 15.0 + 15.0*sin((float)TIME / 60.0);
+        Room1.ceilingHeight = 17.0 + 15.0*sin((float)TIME / 60.0);
+
+        bspRender(&drawClip, &rootNode, &user);
 
         drawClip = cleanBuffer;
 
         TIME++;
+        inputWait();
         end_frame();
     }
 
