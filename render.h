@@ -1,0 +1,3812 @@
+#ifndef RENDERH
+#define RENDERH
+
+#include "defines.h"
+#include "general.h"
+#include "bsp.h"
+
+struct FrameBuffer
+{
+    int[SCREENWIDTH]   fast;
+    int[SCREENWIDTH*2] full; //(Bottom, Top)//
+};
+
+struct WallDrawData
+{
+    float        xStart;
+    float        xEnd;
+    float        yStart;
+    float        yEnd;
+    float        textureStart;
+    float        textureEnd;
+    float        zBottom;
+    float        zTop;
+    float        zPos;
+    float        textureWidth;
+    float        textureHeight;
+    float        yOffset;
+    FrameBuffer* clipping;
+    int          floorColor;
+    int          ceilingColor;
+    int          textureID;
+};
+
+bool onRightSideSeg(Segment* seg, float x, float y)
+{
+    float dx = x - seg->xPos;
+    float dy = y - seg->yPos;
+
+    float left  = dx * seg->dy;
+    float right = dy * seg->dx;
+    if(right < left)
+    {
+        return 1;
+    }
+    else
+    {
+        return 0;
+    }
+}
+
+
+void drawPortalClip(WallDrawData* data)
+{
+    float        xStart        = data->xStart;
+    float        xEnd          = data->xEnd;
+    float        yStart        = data->yStart;
+    float        yEnd          = data->yEnd;
+    float        zTop          = data->zTop;
+    float        zBottom       = data->zBottom;
+    float        zPos          = data->zPos;
+    FrameBuffer* clipping      = data->clipping;
+    int          floorColor    = data->floorColor;
+    int          ceilingColor  = data->ceilingColor;
+
+    int   columnStart = min(floor((yStart/xStart - 1.0) * -320.0), 639);
+    int   columnEnd   = min(floor((yEnd/xEnd - 1.0) * -320.0), 639);
+
+    float onScreenWidth = (float)(columnEnd - columnStart);
+    if(onScreenWidth == 0.0)
+    {
+        return;
+    }
+
+    float topStart    =  SCREENCENTERY
+                      - (SCREENHEIGHT * (zTop    - zPos) / xStart);
+
+    float topEnd      = SCREENCENTERY
+                      - (SCREENHEIGHT * (zTop    - zPos) / xEnd);
+
+    float bottomStart =  SCREENCENTERY
+                      - (SCREENHEIGHT * (zBottom - zPos) / xStart);
+
+    float bottomEnd   = SCREENCENTERY
+                      - (SCREENHEIGHT * (zBottom - zPos) / xEnd);
+
+    float currentTop = topStart;
+    float topStep    = (topEnd - topStart) / onScreenWidth;
+
+    float currentBottom = bottomStart;
+    float bottomStep    = (bottomEnd - bottomStart) / onScreenWidth;
+
+
+    int*  fullClippingPointer = &(clipping->full[columnStart*2]);
+    int*  fastClippingPointer = &(clipping->fast[columnStart]);
+
+
+    select_texture(-1);
+    set_drawing_scale(1.0, 1.0);
+    select_region(256);
+
+    asm
+    {
+        //Initialize registers
+        "mov  R6,  {columnStart}"
+        "mov  R7,  {fastClippingPointer}"
+        "mov  R8,  {onScreenWidth}"
+        "cfi  R8"
+        "iadd R8,  1"
+        "mov  R9,  {currentBottom}"
+        "mov  R10, {currentTop}"
+        "mov  R13, {fullClippingPointer}"
+
+        //Loop start
+        "_Cwall_while_loop_start:"
+
+        //Check fast clipping
+        "mov  R0,  [R7]"
+        "jt   R0,  _Cwall_while_loop_iterators"
+
+        //Set x drawing point
+        "out  GPU_DrawingPointX, R6"
+
+        //Get bottom clipping
+        "mov  R5,  [R13]"
+        "iadd R13, 1"
+
+        //Get top clipping
+        "mov  R4,  [R13]"
+        "isub R13, 1"
+
+        //Test if floor is clipped
+        "mov  R0,  R9"
+        "cfi  R0"
+        "mov  R1,  R0"
+        "igt  R1,  R5"
+        "jt   R1,  _Cfloor_clipped"
+
+        //Set new bottom clipping
+        "imax R0,  R4"
+        "mov  [R13], R0"
+
+        //Get floor height
+        "mov  R1,  R5"
+        "isub R1,  R0"
+        "cif  R1"
+
+        //Draw floor
+        "mov  R3,  {floorColor}"
+        "out  GPU_MultiplyColor, R3"
+        "out  GPU_DrawingScaleY, R1"
+        "out  GPU_DrawingPointY, R0"
+        "out  GPU_Command, GPUCommand_DrawRegionZoomed"
+
+        "_Cfloor_clipped:"
+        "iadd R13, 1"
+
+        //Test if ceiling is clipped
+        "mov  R0,  R10"
+        "cfi  R0"
+        "mov  R1,  R0"
+        "ilt  R1,  R4"
+        "jt   R1,  _Cceiling_clipped"
+
+        //Set new top clipping
+        "imin R0,  R5"
+        "mov  [R13], R0"
+
+        //Get ceiling height
+        "mov  R1,  R0"
+        "isub R1,  R4"
+        "cif  R1"
+
+        //Draw ceiling
+        "mov  R3,  {ceilingColor}"
+        "out  GPU_MultiplyColor, R3"
+        "out  GPU_DrawingScaleY, R1"
+        "out  GPU_DrawingPointY, R4"
+        "out  GPU_Command, GPUCommand_DrawRegionZoomed"
+
+
+        "_Cceiling_clipped:"
+
+        //Test if column is full
+        "mov  R0,  [R13]"
+        "isub R13, 1"
+        "mov  R1,  [R13]"
+        "ige  R0,  R1"
+        "jf   R0,  _Cwall_while_loop_iterators"
+
+        "mov  [R7], R0"
+
+
+        "_Cwall_while_loop_iterators:"
+
+        //While iterators
+        "iadd R6,  1"
+        "iadd R7,  1"
+        "isub R8,  1"
+        "mov  R0,  {bottomStep}"
+        "fadd R9,  R0"
+        "mov  R0,  {topStep}"
+        "fadd R10, R0"
+        "iadd R13, 2"
+
+        //Loop condition
+        "jt   R8, _Cwall_while_loop_start"
+
+        "_Cwall_while_loop_end:"
+    }
+
+    set_multiply_color(color_white);
+
+    return;
+}
+
+
+void drawPortalClipBottom(WallDrawData* data)
+{
+    float        xStart        = data->xStart;
+    float        xEnd          = data->xEnd;
+    float        yStart        = data->yStart;
+    float        yEnd          = data->yEnd;
+    float        zBottom       = data->zBottom;
+    float        zPos          = data->zPos;
+    FrameBuffer* clipping      = data->clipping;
+    int          floorColor    = data->floorColor;
+
+    int   columnStart = min(floor((yStart/xStart - 1.0) * -320.0), 639);
+    int   columnEnd   = min(floor((yEnd/xEnd - 1.0) * -320.0), 639);
+
+    float onScreenWidth = (float)(columnEnd - columnStart);
+    if(onScreenWidth == 0.0)
+    {
+        return;
+    }
+
+    float bottomStart =  SCREENCENTERY
+                      - (SCREENHEIGHT * (zBottom - zPos) / xStart);
+
+    float bottomEnd   = SCREENCENTERY
+                      - (SCREENHEIGHT * (zBottom - zPos) / xEnd);
+
+    float currentBottom = bottomStart;
+    float bottomStep    = (bottomEnd - bottomStart) / onScreenWidth;
+
+
+    int*  fullClippingPointer = &(clipping->full[columnStart*2]);
+    int*  fastClippingPointer = &(clipping->fast[columnStart]);
+
+
+    select_texture(-1);
+    set_drawing_scale(1.0, 1.0);
+    select_region(256);
+
+    asm
+    {
+        //Initialize registers
+        "mov  R6,  {columnStart}"
+        "mov  R7,  {fastClippingPointer}"
+        "mov  R8,  {onScreenWidth}"
+        "cfi  R8"
+        "iadd R8,  1"
+        "mov  R9,  {currentBottom}"
+        "mov  R13, {fullClippingPointer}"
+
+        //Loop start
+        "_CBwall_while_loop_start:"
+
+        //Check fast clipping
+        "mov  R0,  [R7]"
+        "jt   R0,  _CBwall_while_loop_iterators"
+
+        //Set x drawing point
+        "out  GPU_DrawingPointX, R6"
+
+        //Get bottom clipping
+        "mov  R5,  [R13]"
+        "iadd R13, 1"
+
+        //Get top clipping
+        "mov  R4,  [R13]"
+        "isub R13, 1"
+
+        //Test if floor is clipped
+        "mov  R0,  R9"
+        "cfi  R0"
+        "mov  R1,  R0"
+        "igt  R1,  R5"
+        "jt   R1,  _CBfloor_clipped"
+
+        //Set new bottom clipping
+        "imax R0,  R4"
+        "mov  [R13], R0"
+
+        //Get floor height
+        "mov  R1,  R5"
+        "isub R1,  R0"
+        "cif  R1"
+
+        //Draw floor
+        "mov  R3,  {floorColor}"
+        "out  GPU_MultiplyColor, R3"
+        "out  GPU_DrawingScaleY, R1"
+        "out  GPU_DrawingPointY, R0"
+        "out  GPU_Command, GPUCommand_DrawRegionZoomed"
+
+        "_CBfloor_clipped:"
+        "iadd R13, 1"
+
+        //Test if column is full
+        "mov  R0,  [R13]"
+        "isub R13, 1"
+        "mov  R1,  [R13]"
+        "ige  R0,  R1"
+        "jf   R0,  _CBwall_while_loop_iterators"
+
+        "mov  [R7], R0"
+
+
+        "_CBwall_while_loop_iterators:"
+
+        //While iterators
+        "iadd R6,  1"
+        "iadd R7,  1"
+        "isub R8,  1"
+        "mov  R0,  {bottomStep}"
+        "fadd R9,  R0"
+        "iadd R13, 2"
+
+        //Loop condition
+        "jt   R8, _CBwall_while_loop_start"
+
+        "_CBwall_while_loop_end:"
+    }
+
+    set_multiply_color(color_white);
+
+    return;
+}
+
+
+
+
+void drawPortalClipTop(WallDrawData* data)
+{
+    float        xStart        = data->xStart;
+    float        xEnd          = data->xEnd;
+    float        yStart        = data->yStart;
+    float        yEnd          = data->yEnd;
+    float        zTop          = data->zTop;
+    float        zPos          = data->zPos;
+    FrameBuffer* clipping      = data->clipping;
+    int          ceilingColor  = data->ceilingColor;
+
+    int   columnStart = min(floor((yStart/xStart - 1.0) * -320.0), 639);
+    int   columnEnd   = min(floor((yEnd/xEnd - 1.0) * -320.0), 639);
+
+    float onScreenWidth = (float)(columnEnd - columnStart);
+    if(onScreenWidth == 0.0)
+    {
+        return;
+    }
+
+    float topStart    =  SCREENCENTERY
+                      - (SCREENHEIGHT * (zTop    - zPos) / xStart);
+
+    float topEnd      = SCREENCENTERY
+                      - (SCREENHEIGHT * (zTop    - zPos) / xEnd);
+
+    float currentTop = topStart;
+    float topStep    = (topEnd - topStart) / onScreenWidth;
+
+    int*  fullClippingPointer = &(clipping->full[columnStart*2]);
+    int*  fastClippingPointer = &(clipping->fast[columnStart]);
+
+
+    select_texture(-1);
+    set_drawing_scale(1.0, 1.0);
+    select_region(256);
+
+    asm
+    {
+        //Initialize registers
+        "mov  R6,  {columnStart}"
+        "mov  R7,  {fastClippingPointer}"
+        "mov  R8,  {onScreenWidth}"
+        "cfi  R8"
+        "iadd R8,  1"
+        "mov  R10, {currentTop}"
+        "mov  R13, {fullClippingPointer}"
+
+        //Loop start
+        "_CTwall_while_loop_start:"
+
+        //Check fast clipping
+        "mov  R0,  [R7]"
+        "jt   R0,  _CTwall_while_loop_iterators"
+
+        //Set x drawing point
+        "out  GPU_DrawingPointX, R6"
+
+        //Get bottom clipping
+        "mov  R5,  [R13]"
+        "iadd R13, 1"
+
+        //Get top clipping
+        "mov  R4,  [R13]"
+
+        //Test if ceiling is clipped
+        "mov  R0,  R10"
+        "cfi  R0"
+        "mov  R1,  R0"
+        "ilt  R1,  R4"
+        "jt   R1,  _CTceiling_clipped"
+
+        //Set new top clipping
+        "imin R0,  R5"
+        "mov  [R13], R0"
+
+        //Get ceiling height
+        "mov  R1,  R0"
+        "isub R1,  R4"
+        "cif  R1"
+
+        //Draw ceiling
+        "mov  R3,  {ceilingColor}"
+        "out  GPU_MultiplyColor, R3"
+        "out  GPU_DrawingScaleY, R1"
+        "out  GPU_DrawingPointY, R4"
+        "out  GPU_Command, GPUCommand_DrawRegionZoomed"
+
+
+        "_CTceiling_clipped:"
+
+        //Test if column is full
+        "mov  R0,  [R13]"
+        "isub R13, 1"
+        "mov  R1,  [R13]"
+        "ige  R0,  R1"
+        "jf   R0,  _CTwall_while_loop_iterators"
+
+        "mov  [R7], R0"
+
+
+        "_CTwall_while_loop_iterators:"
+
+        //While iterators
+        "iadd R6,  1"
+        "iadd R7,  1"
+        "isub R8,  1"
+        "mov  R0,  {topStep}"
+        "fadd R10, R0"
+        "iadd R13, 2"
+
+        //Loop condition
+        "jt   R8, _CTwall_while_loop_start"
+
+        "_CTwall_while_loop_end:"
+    }
+
+    set_multiply_color(color_white);
+
+    return;
+}
+
+
+void drawPortal(
+    WallDrawData* data,
+    float windowBottomZ,
+    float windowTopZ,
+    Texture* upperTexture
+)
+{
+    float xStart              = data->xStart;
+    float xEnd                = data->xEnd;
+    float yStart              = data->yStart;
+    float yEnd                = data->yEnd;
+    float textureStart        = data->textureStart;
+    float textureEnd          = data->textureEnd;
+    float zBottom             = data->zBottom;
+    float zTop                = data->zTop;
+    float zPos                = data->zPos;
+    float textureWidthBottom  = data->textureWidth;
+    float textureHeightBottom = data->textureHeight;
+    float textureWidthTop     = upperTexture->width;
+    float textureHeightTop    = upperTexture->height;
+    float yOffset             = data->yOffset;
+    int*  fastClipping        = data->clipping->fast;
+    int*  fullClipping        = data->clipping->full;
+    float roomHeight          = zTop - zBottom;
+    float topWallHeight       = zTop - windowTopZ;
+    float bottomWallHeight    = windowBottomZ - zBottom;
+    int   floorColor          = data->floorColor;
+    int   ceilingColor        = data->ceilingColor;
+    int   textureBottom       = data->textureID;
+    int   textureTop          = upperTexture->textureID;
+
+    int   columnStart = min(floor((yStart/xStart - 1.0) * -320.0), 639);
+    int   columnEnd   = min(floor((yEnd/xEnd - 1.0) * -320.0), 639);
+
+    float onScreenWidth = (float)(columnEnd - columnStart);
+    if(onScreenWidth <= 0.0)
+    {
+        return;
+    }
+
+    float topStart          =  SCREENCENTERY
+                            - (SCREENHEIGHT * (zTop          - zPos) / xStart);
+
+    float topEnd            = SCREENCENTERY
+                            - (SCREENHEIGHT * (zTop          - zPos) / xEnd);
+
+    float windowTopStart    =  SCREENCENTERY
+                            - (SCREENHEIGHT * (windowTopZ    - zPos) / xStart);
+
+    float windowTopEnd      = SCREENCENTERY
+                            - (SCREENHEIGHT * (windowTopZ    - zPos) / xEnd);
+
+    float bottomStart       =  SCREENCENTERY
+                            - (SCREENHEIGHT * (zBottom       - zPos) / xStart);
+
+    float bottomEnd         = SCREENCENTERY
+                            - (SCREENHEIGHT * (zBottom       - zPos) / xEnd);
+
+    float windowBottomStart =  SCREENCENTERY
+                            - (SCREENHEIGHT * (windowBottomZ - zPos) / xStart);
+
+    float windowBottomEnd   = SCREENCENTERY
+                            - (SCREENHEIGHT * (windowBottomZ - zPos) / xEnd);
+
+    float currentTop = topStart;
+    float topStep    = (topEnd - topStart) / onScreenWidth;
+
+    float currentWindowTop = windowTopStart;
+    float windowTopStep    = (windowTopEnd - windowTopStart) / onScreenWidth;
+
+    float currentBottom = bottomStart;
+    float bottomStep    = (bottomEnd - bottomStart) / onScreenWidth;
+
+    float currentWindowBottom = windowBottomStart;
+    float windowBottomStep    = (windowBottomEnd - windowBottomStart) / onScreenWidth;
+
+    float currentTextureScale = (bottomStart - topStart) / roomHeight;
+
+    float textureScaleStep    = (bottomEnd - topEnd - bottomStart + topStart)
+                              / (roomHeight * onScreenWidth);
+
+    float texOverXstart = textureStart / xStart;
+    float texOverXend   = textureEnd   / xEnd;
+    float texOverXstep  = (texOverXend - texOverXstart) / onScreenWidth;
+    float texOverXcurrent = texOverXstart;
+
+    float inverseXstart = 1.0 / xStart;
+    float inverseXend   = 1.0 / xEnd;
+    float inverseXstep  =  (inverseXend - inverseXstart) / onScreenWidth;
+    float inverseXcurrent = inverseXstart;
+
+    float textureTrueTop          = textureHeightTop - yOffset - roomHeight;
+    float textureTrueWindowTop    = textureTrueTop + topWallHeight;
+    float textureTrueBottom       = textureHeightBottom - yOffset;
+    float textureTrueWindowBottom = textureTrueBottom - bottomWallHeight;
+    int*  fullClippingPointer = &(fullClipping[columnStart*2]);
+    int*  fastClippingPointer = &(fastClipping[0]);
+    int   screenTop;
+    int   screenBottom;
+    int   screenFullTop;
+    int   screenFullBottom;
+    int   textureFullTop;
+    int   textureFullBottom;
+
+    select_texture(textureBottom);
+    select_region(0);
+    set_multiply_color(0xFFFFFFFF);
+    set_drawing_scale(1.0, 1.0);
+
+    asm
+    {
+        //Initialize registers
+        "mov  R4,  {texOverXstart}"
+        "mov  R5,  {inverseXstart}"
+        "mov  R7,  {onScreenWidth}"
+        "cfi  R7"
+        "iadd R7,  1"
+        "mov  R8,  {currentTextureScale}"
+        "mov  R9,  {currentBottom}"
+        "mov  R10, {currentWindowBottom}"
+        "mov  R11, {columnStart}"
+        "mov  R13, {fullClippingPointer}"
+
+        //Loop start
+        "_Pwall_while_loop_start:"
+
+        //Check fast clipping
+        "mov  R1,  {fastClippingPointer}"
+        "iadd R1,  R11"
+        "mov  R0,  [R1]"
+        "jt   R0,  _Pwall_while_loop_iterators_add"
+
+        //Get bottom clipping
+        "mov  R12, [R13]"
+        "iadd R13, 1"
+
+        //Check if top is below screen
+        "mov  R0,  R10"
+        "mov  R3,  R12"
+        "cif  R3"
+        "fgt  R0,  R3"
+        "jt   R0,  _Ptop_offscreen"
+
+        //Check if bottom is above screen
+        "mov  R0,  R9"
+        "mov  R2,  [R13]"
+        "cif  R2"
+        "flt  R0,  R2"
+        "jt   R0,  _Pbottom_offsecreen"
+
+        //Set X drawing point
+        "out  GPU_DrawingPointX,  R11"
+
+        //Determine currentTextureX
+        "mov  R0,  R4"
+        "fdiv R0,  R5"
+
+        "mov  R1,  {textureWidthBottom}"
+        "fmod R0,  R1"
+
+        //Set X positions
+        "cfi  R0"
+        "out  GPU_RegionMinX, R0"
+        "out  GPU_RegionMaxX, R0"
+        "out  GPU_RegionHotspotX, R0"
+
+
+        //Check if bottom is clipped
+        "mov  R0,  R9"
+        "fgt  R0,  R3"
+        "jf   R0,  _Pbottom_not_clipped"
+
+        //Bottom is clipped
+
+        // screenBottom
+        "mov  {screenBottom}, R12"
+
+        // textureBottom
+        "mov  R0,  {textureTrueBottom}"
+        "mov  R2,  R9"
+        "cif  R12"
+        "fsub R2,  R12"
+        "fdiv R2,  R8"
+        "fsub R0,  R2"
+
+        // textureFullBottom
+        "mov  R2, R0"
+        "flr  R2"
+
+        // screenFullBottom
+        "fsub R0,  R2"
+        "fmul R0,  R8"
+        "fsub R12, R0"
+        "cfi  R12"
+        "mov  {screenFullBottom}, R12"
+
+        "cfi  R2"
+        "mov  {textureFullBottom}, R2"
+
+        "jmp  _Pbottom_clipped_end"
+
+
+
+        //Bottom is not clipped
+        "_Pbottom_not_clipped:"
+
+        //Select floor settings
+        "in   R0,  GPU_SelectedTexture"
+        "out  GPU_SelectedTexture, -1"
+        "out  GPU_SelectedRegion, 256"
+        "mov  R1,  {floorColor}"
+        "out  GPU_MultiplyColor, R1"
+
+        //Get floor height
+        "mov  R1,  R12"
+        "cif  R1"
+        "fsub R1,  R9"
+        "ceil R1"
+        "out  GPU_DrawingScaleY, R1"
+
+        //Draw floor
+        "mov  R1,  R9"
+        "cfi  R1"
+        "out  GPU_DrawingPointY, R1"
+        "out  GPU_Command, GPUCommand_DrawRegionZoomed"
+
+        //Reset settings
+        "out  GPU_MultiplyColor, 0xFFFFFFFF"
+        "mov  R0,  {textureBottom}"
+        "out  GPU_SelectedTexture, R0"
+        "out  GPU_SelectedRegion, 0"
+
+
+        // screenBottom
+        "mov  R1,  R9"
+        "cfi  R1"
+        "mov  {screenBottom}, R1"
+        "mov  R1,  R9"
+
+        // textureBottom
+        "mov  R0, {textureTrueBottom}"
+
+        // textureFullBottom
+        "mov  R2,  R0"
+        "flr  R2"
+
+        // screenFullBottom
+        "fsub R0,  R2"
+        "fmul R0,  R8"
+        "fsub R1,  R0"
+        "cfi  R1"
+        "mov  {screenFullBottom}, R1"
+
+        "cfi  R2"
+        "mov  {textureFullBottom}, R2"
+
+        "_Pbottom_clipped_end:"
+
+
+        //Get top clipping
+        "mov  R12, [R13]"
+
+        //Check if top is clipped
+        "mov  R0,  R10"
+        "mov  R1,  R12"
+        "cif  R1"
+        "flt  R0,  R1"
+        "jf   R0,  _Ptop_not_clipped"
+
+        //Top is clipped
+
+        // screenTop
+        "mov  {screenTop}, R12"
+
+        // textureTop
+        "mov  R0,  {textureTrueWindowBottom}"
+        "mov  R2,  R10"
+        "fsub R2,  R1"
+        "fdiv R2,  R8"
+        "fsub R0,  R2"
+
+        // textureFullTop
+        "mov  R2,  R0"
+        "ceil R2"
+
+        // screenFullTop
+        "fsub R0,  R2"
+        "fmul R0,  R8"
+        "fsub R1,  R0"
+        "cfi  R1"
+        "mov  {screenFullTop}, R1"
+
+        "cfi  R2"
+        "mov  {textureFullTop}, R2"
+
+        "jmp  _Ptop_clipped_end"
+
+
+
+        //Top is not clipped
+        "_Ptop_not_clipped:"
+
+        // screenTop
+        "mov  R1,  R10"
+        "cfi  R1"
+        "mov  {screenTop}, R1"
+        "mov  R1,  R10"
+
+        // textureTop
+        "mov  R0, {textureTrueWindowBottom}"
+
+        // textureFullTop
+        "mov  R2, R0"
+        "ceil R2"
+
+        // screenFullTop
+        "fsub R0, R2"
+        "fmul R0, R8"
+        "fsub R1, R0"
+        "cfi  R1"
+        "mov  {screenFullTop}, R1"
+
+        "cfi  R2"
+        "mov  {textureFullTop}, R2"
+
+        "_Ptop_clipped_end:"
+
+
+
+
+        //Texture Full Check
+        "mov  R2, {textureFullBottom}"
+        "mov  R3, {textureFullTop}"
+        "ile  R2, R3"
+        "jt   R2, _PfullTextureSkip"
+
+        //Texture Full drawing
+        "mov  R0,  {screenFullBottom}"
+        "mov  R1,  {screenFullTop}"
+        "mov  R2,  {textureFullBottom}"
+        "mov  R3,  {textureFullTop}"
+        "isub R0,  R1"
+        "isub R2,  R3"
+        "cif  R0"
+        "cif  R2"
+        "fdiv R0,  R2"
+        "out  GPU_DrawingScaleY, R0"
+
+        "mov  R2,  {textureFullBottom}"
+        "out  GPU_RegionMinY, R3"
+        "out  GPU_RegionHotspotY, R2"
+        "isub R2,  1"
+        "out  GPU_RegionMaxY, R2"
+
+        "mov  R0,  {screenFullBottom}"
+        "out  GPU_DrawingPointY, R0"
+        "out  GPU_Command, GPUCommand_DrawRegionZoomed"
+
+        "_PfullTextureSkip:"
+
+        //Texture Top Check
+        "mov  R0,  {screenFullTop}"
+        "mov  R1,  {screenTop}"
+        "ine  R1,  R0"
+        "jf   R1,  _PtopTextureSkip"
+
+        //Texture Top Drawing
+        "mov  R1,  {screenBottom}"
+        "imin R0,  R1"
+        "mov  R1,  {screenTop}"
+        "isub R0,  R1"
+        "cif  R0"
+        "out  GPU_DrawingScaleY, R0"
+
+        "mov  R0,  {textureFullTop}"
+        "isub R0,  1"
+        "out  GPU_RegionMinY, R0"
+        "out  GPU_RegionMaxY, R0"
+        "out  GPU_RegionHotspotY, R0"
+
+        "out  GPU_DrawingPointY, R1"
+        "out  GPU_Command, GPUCommand_DrawRegionZoomed"
+
+        "_PtopTextureSkip:"
+
+        //Texture Bottom Check
+        "mov  R0,  {screenFullBottom}"
+        "mov  R1,  {screenBottom}"
+        "ine  R1,  R0"
+        "jf   R1,  _PbottomTextureSkip"
+
+        //Texture Bottom Drawing
+        "mov  R1,  {screenTop}"
+        "imax R0,  R1"
+        "mov  R1,  {screenBottom}"
+        "isub R1,  R0"
+        "cif  R1"
+        "out  GPU_DrawingScaleY, R1"
+
+        "mov  R1,  {textureFullBottom}"
+        "out  GPU_RegionMinY, R1"
+        "out  GPU_RegionMaxY, R1"
+        "out  GPU_RegionHotspotY, R1"
+
+        "out  GPU_DrawingPointY, R0"
+        "out  GPU_Command, GPUCommand_DrawRegionZoomed"
+
+        "_PbottomTextureSkip:"
+
+
+        // Set full clipping
+        "isub R13, 1"
+        "mov  R12, {screenTop}"
+        "mov  [R13], R12"
+        "iadd R13, 2"
+
+        "jmp _Pwall_while_loop_iterators"
+
+        // Go to next full clipping
+        "_Pwall_while_loop_iterators_add:"
+
+        "iadd R13, 2"
+
+        "jmp _Pwall_while_loop_iterators"
+
+        // Set fast clipping true
+        "_Pbottom_offsecreen:"
+        "mov  [R1], R0"
+
+        // Go to next full clipping
+        "_Ptop_offscreen:"
+        "iadd R13, 1"
+
+
+        "_Pwall_while_loop_iterators:"
+
+        // While iterators
+        "mov  R1,  {windowBottomStep}"
+        "fadd R10, R1"
+
+        "mov  R1,  {bottomStep}"
+        "fadd R9,  R1"
+
+        "mov  R1,  {textureScaleStep}"
+        "fadd R8,  R1"
+
+        "isub R7,  1"
+
+        "mov  R1,  {inverseXstep}"
+        "fadd R5,  R1"
+
+        "mov  R1,  {texOverXstep}"
+        "fadd R4,  R1"
+
+        "iadd R11, 1"
+
+        //Check loop condition
+        "jt   R7,  _Pwall_while_loop_start"
+
+        "_Pwall_while_loop_end:"
+    }
+
+    select_texture(textureTop);
+    select_region(0);
+    set_multiply_color(0xFFFFFFFF);
+    set_drawing_scale(1.0, 1.0);
+
+    asm
+    {
+        //Initialize registers
+        "mov  R4,  {texOverXstart}"
+        "mov  R5,  {inverseXstart}"
+        "mov  R7,  {onScreenWidth}"
+        "cfi  R7"
+        "iadd R7,  1"
+        "mov  R8,  {currentTextureScale}"
+        "mov  R9,  {currentWindowTop}"
+        "mov  R10, {currentTop}"
+        "mov  R11, {columnStart}"
+        "mov  R13, {fullClippingPointer}"
+
+        //Loop start
+        "_PTwall_while_loop_start:"
+
+        //Check fast clipping
+        "mov  R1,   {fastClippingPointer}"
+        "iadd R1,   R11"
+        "mov  R0,   [R1]"
+        "jt   R0,   _PTwall_while_loop_iterators_add"
+
+        //Get bottom clipping
+        "mov  R12, [R13]"
+        "iadd R13, 1"
+
+        //Check if top is below screen
+        "mov  R0,  R10"
+        "mov  R3,  R12"
+        "cif  R3"
+        "fgt  R0,  R3"
+        "jt   R0,  _PTtop_offscreen"
+
+        //Check if bottom is above screen
+        "mov  R0,  R9"
+        "mov  R1,  [R13]"
+        "cif  R1"
+        "flt  R0,  R1"
+        "jt   R0,  _PTbottom_offsecreen"
+
+        //Set X drawing point
+        "out  GPU_DrawingPointX,  R11"
+
+        //Determine currentTextureX
+        "mov  R0,  R4"
+        "fdiv R0,  R5"
+
+        "mov  R1,  {textureWidthTop}"
+        "fmod R0,  R1"
+
+        //Set X positions
+        "cfi  R0"
+        "out  GPU_RegionMinX, R0"
+        "out  GPU_RegionMaxX, R0"
+        "out  GPU_RegionHotspotX, R0"
+
+
+        //Check if bottom is clipped
+        "mov  R0,  R9"
+        "fgt  R0,  R3"
+        "jf   R0,  _PTbottom_not_clipped"
+
+        //Bottom is clipped
+
+        // screenBottom
+        "mov  {screenBottom}, R12"
+
+        // textureBottom
+        "mov  R0,  {textureTrueWindowTop}"
+        "mov  R2,  R9"
+        "cif  R12"
+        "fsub R2,  R12"
+        "fdiv R2,  R8"
+        "fsub R0,  R2"
+
+        // textureFullBottom
+        "mov  R2, R0"
+        "flr  R2"
+
+        // screenFullBottom
+        "fsub R0,  R2"
+        "fmul R0,  R8"
+        "fsub R12, R0"
+        "cfi  R12"
+        "mov  {screenFullBottom}, R12"
+
+        "cfi  R2"
+        "mov  {textureFullBottom}, R2"
+
+        "jmp  _PTbottom_clipped_end"
+
+
+
+        //Bottom is not clipped
+        "_PTbottom_not_clipped:"
+
+        // screenBottom
+        "mov  R1,  R9"
+        "cfi  R1"
+        "mov  {screenBottom}, R1"
+        "mov  R1,  R9"
+
+        // textureBottom
+        "mov  R0, {textureTrueWindowTop}"
+
+        // textureFullBottom
+        "mov  R2,  R0"
+        "flr  R2"
+
+        // screenFullBottom
+        "fsub R0,  R2"
+        "fmul R0,  R8"
+        "fsub R1,  R0"
+        "cfi  R1"
+        "mov  {screenFullBottom}, R1"
+
+        "cfi  R2"
+        "mov  {textureFullBottom}, R2"
+
+        "_PTbottom_clipped_end:"
+
+
+        //Get top clipping
+        "mov  R12, [R13]"
+
+        //Check if top is clipped
+        "mov  R0,  R10"
+        "mov  R1,  R12"
+        "cif  R1"
+        "flt  R0,  R1"
+        "jf   R0,  _PTtop_not_clipped"
+
+        //Top is clipped
+
+        // screenTop
+        "mov  {screenTop}, R12"
+
+        // textureTop
+        "mov  R0,  {textureTrueTop}"
+        "mov  R2,  R10"
+        "fsub R2,  R1"
+        "fdiv R2,  R8"
+        "fsub R0,  R2"
+
+        // textureFullTop
+        "mov  R2,  R0"
+        "ceil R2"
+
+        // screenFullTop
+        "fsub R0,  R2"
+        "fmul R0,  R8"
+        "fsub R1,  R0"
+        "cfi  R1"
+        "mov  {screenFullTop}, R1"
+
+        "cfi  R2"
+        "mov  {textureFullTop}, R2"
+
+        "jmp  _PTtop_clipped_end"
+
+
+
+        //Top is not clipped
+        "_PTtop_not_clipped:"
+
+        //Select ceiling settings
+        "in   R0,  GPU_SelectedTexture"
+        "out  GPU_SelectedTexture, -1"
+        "out  GPU_SelectedRegion, 256"
+        "mov  R2,  {ceilingColor}"
+        "out  GPU_MultiplyColor, R2"
+
+        //Get ceiling height
+        "mov  R2,  R10"
+        "fsub R2,  R1"
+        "flr  R2"
+        "out  GPU_DrawingScaleY, R2"
+
+        //Draw ceiling
+        "mov  R2,  R1"
+        "cfi  R2"
+        "out  GPU_DrawingPointY, R2"
+        "out  GPU_Command, GPUCommand_DrawRegionZoomed"
+
+        //Reset settings
+        "out  GPU_MultiplyColor, 0xFFFFFFFF"
+        "mov  R0,  {textureTop}"
+        "out  GPU_SelectedTexture, R0"
+        "out  GPU_SelectedRegion, 0"
+
+
+        // screenTop
+        "mov  R1,  R10"
+        "cfi  R1"
+        "mov  {screenTop}, R1"
+        "mov  R1,  R10"
+
+        // textureTop
+        "mov  R0, {textureTrueTop}"
+
+        // textureFullTop
+        "mov  R2, R0"
+        "ceil R2"
+
+        // screenFullTop
+        "fsub R0, R2"
+        "fmul R0, R8"
+        "fsub R1, R0"
+        "cfi  R1"
+        "mov  {screenFullTop}, R1"
+
+        "cfi  R2"
+        "mov  {textureFullTop}, R2"
+
+        "_PTtop_clipped_end:"
+
+
+
+
+        //Texture Full Check
+        "mov  R2, {textureFullBottom}"
+        "mov  R3, {textureFullTop}"
+        "ile  R2, R3"
+        "jt   R2, _PTfullTextureSkip"
+
+        //Texture Full drawing
+        "mov  R0,  {screenFullBottom}"
+        "mov  R1,  {screenFullTop}"
+        "mov  R2,  {textureFullBottom}"
+        "mov  R3,  {textureFullTop}"
+        "isub R0,  R1"
+        "isub R2,  R3"
+        "cif  R0"
+        "cif  R2"
+        "fdiv R0,  R2"
+        "out  GPU_DrawingScaleY, R0"
+
+        "mov  R2,  {textureFullBottom}"
+        "out  GPU_RegionMinY, R3"
+        "out  GPU_RegionHotspotY, R2"
+        "isub R2,  1"
+        "out  GPU_RegionMaxY, R2"
+
+        "mov  R0,  {screenFullBottom}"
+        "out  GPU_DrawingPointY, R0"
+        "out  GPU_Command, GPUCommand_DrawRegionZoomed"
+
+        "_PTfullTextureSkip:"
+
+        //Texture Top Check
+        "mov  R0,  {screenFullTop}"
+        "mov  R1,  {screenTop}"
+        "ine  R1,  R0"
+        "jf   R1,  _PTtopTextureSkip"
+
+        //Texture Top Drawing
+        "mov  R1,  {screenBottom}"
+        "imin R0,  R1"
+        "mov  R1,  {screenTop}"
+        "isub R0,  R1"
+        "cif  R0"
+        "out  GPU_DrawingScaleY, R0"
+
+        "mov  R0,  {textureFullTop}"
+        "isub R0,  1"
+        "out  GPU_RegionMinY, R0"
+        "out  GPU_RegionMaxY, R0"
+        "out  GPU_RegionHotspotY, R0"
+
+        "out  GPU_DrawingPointY, R1"
+        "out  GPU_Command, GPUCommand_DrawRegionZoomed"
+
+        "_PTtopTextureSkip:"
+
+        //Texture Bottom Check
+        "mov  R0,  {screenFullBottom}"
+        "mov  R1,  {screenBottom}"
+        "ine  R1,  R0"
+        "jf   R1,  _PTbottomTextureSkip"
+
+        //Texture Bottom Drawing
+        "mov  R1,  {screenTop}"
+        "imax R0,  R1"
+        "mov  R1,  {screenBottom}"
+        "isub R1,  R0"
+        "cif  R1"
+        "out  GPU_DrawingScaleY, R1"
+
+        "mov  R1,  {textureFullBottom}"
+        "out  GPU_RegionMinY, R1"
+        "out  GPU_RegionMaxY, R1"
+        "out  GPU_RegionHotspotY, R1"
+
+        "out  GPU_DrawingPointY, R0"
+        "out  GPU_Command, GPUCommand_DrawRegionZoomed"
+
+        "_PTbottomTextureSkip:"
+
+
+        // Set full clipping
+        "mov  R12, {screenBottom}"
+        "mov  [R13], R12"
+        "iadd R13, 1"
+
+        "jmp  _PTwall_while_loop_iterators"
+
+        // Go to next full clipping
+        "_PTwall_while_loop_iterators_add:"
+
+        "iadd R13, 2"
+
+        "jmp  _PTwall_while_loop_iterators"
+
+
+        // Set fast clipping true
+        "_PTtop_offscreen:"
+        "mov  [R1], R0"
+
+        // Go to next full clipping
+        "_PTbottom_offsecreen:"
+        "iadd R13, 1"
+
+
+        "_PTwall_while_loop_iterators:"
+
+        // While iterators
+        "mov  R1,  {topStep}"
+        "fadd R10, R1"
+
+        "mov  R1,  {windowTopStep}"
+        "fadd R9,  R1"
+
+        "mov  R1,  {textureScaleStep}"
+        "fadd R8,  R1"
+
+        "isub R7,  1"
+
+        "mov  R1,  {inverseXstep}"
+        "fadd R5,  R1"
+
+        "mov  R1,  {texOverXstep}"
+        "fadd R4,  R1"
+
+        "iadd R11, 1"
+
+        //Check loop condition
+        "jt   R7,  _PTwall_while_loop_start"
+
+        "_PTwall_while_loop_end:"
+    }
+
+    set_multiply_color(color_white);
+
+    return;
+}
+
+
+
+void drawPortalSlow(
+    WallDrawData* data,
+    float windowBottomZ,
+    float windowTopZ,
+    Texture* upperTexture
+)
+{
+    float xStart              = data->xStart;
+    float xEnd                = data->xEnd;
+    float yStart              = data->yStart;
+    float yEnd                = data->yEnd;
+    float textureStart        = data->textureStart;
+    float textureEnd          = data->textureEnd;
+    float zBottom             = data->zBottom;
+    float zTop                = data->zTop;
+    float zPos                = data->zPos;
+    float textureWidthBottom  = data->textureWidth;
+    float textureHeightBottom = data->textureHeight;
+    float textureWidthTop     = upperTexture->width;
+    float textureHeightTop    = upperTexture->height;
+    float yOffset             = data->yOffset;
+    int*  fastClipping        = data->clipping->fast;
+    int*  fullClipping        = data->clipping->full;
+    float roomHeight          = zTop - zBottom;
+    float topWallHeight       = zTop - windowTopZ;
+    float bottomWallHeight    = windowBottomZ - zBottom;
+    int   floorColor          = data->floorColor;
+    int   ceilingColor        = data->ceilingColor;
+    int   textureBottom       = data->textureID;
+    int   textureTop          = upperTexture->textureID;
+
+    int   columnStart = min(floor((yStart/xStart - 1.0) * -320.0), 639);
+    int   columnEnd   = min(floor((yEnd/xEnd - 1.0) * -320.0), 639);
+
+    float onScreenWidth = (float)(columnEnd - columnStart);
+    if(onScreenWidth <= 0.0)
+    {
+        return;
+    }
+
+    float topStart          =  SCREENCENTERY
+                            - (SCREENHEIGHT * (zTop          - zPos) / xStart);
+
+    float topEnd            = SCREENCENTERY
+                            - (SCREENHEIGHT * (zTop          - zPos) / xEnd);
+
+    float windowTopStart    =  SCREENCENTERY
+                            - (SCREENHEIGHT * (windowTopZ    - zPos) / xStart);
+
+    float windowTopEnd      = SCREENCENTERY
+                            - (SCREENHEIGHT * (windowTopZ    - zPos) / xEnd);
+
+    float bottomStart       =  SCREENCENTERY
+                            - (SCREENHEIGHT * (zBottom       - zPos) / xStart);
+
+    float bottomEnd         = SCREENCENTERY
+                            - (SCREENHEIGHT * (zBottom       - zPos) / xEnd);
+
+    float windowBottomStart =  SCREENCENTERY
+                            - (SCREENHEIGHT * (windowBottomZ - zPos) / xStart);
+
+    float windowBottomEnd   = SCREENCENTERY
+                            - (SCREENHEIGHT * (windowBottomZ - zPos) / xEnd);
+
+    float currentTop = topStart;
+    float topStep    = (topEnd - topStart) / onScreenWidth;
+
+    float currentWindowTop = windowTopStart;
+    float windowTopStep    = (windowTopEnd - windowTopStart) / onScreenWidth;
+
+    float currentBottom = bottomStart;
+    float bottomStep    = (bottomEnd - bottomStart) / onScreenWidth;
+
+    float currentWindowBottom = windowBottomStart;
+    float windowBottomStep    = (windowBottomEnd - windowBottomStart) / onScreenWidth;
+
+    float currentTextureScale = (bottomStart - topStart) / roomHeight;
+
+    float textureScaleStep    = (bottomEnd - topEnd - bottomStart + topStart)
+                              / (roomHeight * onScreenWidth);
+
+    float texOverXstart   = textureStart / xStart;
+    float texOverXend     = textureEnd   / xEnd;
+    float texOverXstep    = (texOverXend - texOverXstart) / onScreenWidth;
+    float texOverXcurrent = texOverXstart;
+
+    float inverseXstart   = 1.0 / xStart;
+    float inverseXend     = 1.0 / xEnd;
+    float inverseXstep    =  (inverseXend - inverseXstart) / onScreenWidth;
+    float inverseXcurrent = inverseXstart;
+
+    float textureTrueTop          = textureHeightTop - yOffset - roomHeight;
+    float textureTrueWindowTop    = textureTrueTop + topWallHeight;
+    float textureTrueBottom       = textureHeightBottom - yOffset;
+    float textureTrueWindowBottom = textureTrueBottom - bottomWallHeight;
+    int*  fullClippingPointer = &(fullClipping[columnStart*2]);
+    int*  fastClippingPointer = &(fastClipping[0]);
+    int   screenTop;
+    int   screenBottom;
+    int   screenFullTop;
+    int   screenFullBottom;
+    int   textureFullTop;
+    int   textureFullBottom;
+
+    select_texture(textureBottom);
+    select_region(0);
+    set_multiply_color(0xFFFFFFFF);
+    set_drawing_scale(1.0, 1.0);
+
+    asm
+    {
+        //Initialize registers
+        "mov  R3,  {fullClippingPointer}"
+        "mov  R4,  {onScreenWidth}"
+        "cfi  R4"
+        "iadd R4,  1"
+        "mov  R5,  {currentTextureScale}"
+        "mov  R7,  {currentWindowTop}"
+        "mov  R8,  {currentTop}"
+        "mov  R9,  {currentBottom}"
+        "mov  R10, {currentWindowBottom}"
+        "mov  R11, {columnStart}"
+
+        //Loop start
+        "_Pboth_wall_while_loop_start:"
+
+        //Check fast clipping
+        "mov  R1,  {fastClippingPointer}"
+        "iadd R1,  R11"
+        "mov  R0,  [R1]"
+        "jt   R0,  _Pboth_wall_while_loop_iterators_add"
+
+        //Set X drawing point
+        "out  GPU_DrawingPointX,  R11"
+
+        //Get bottom clipping
+        "mov  R12, [R3]"
+        "iadd R3, 1"
+
+        //Get top clipping
+        "mov  R13, [R3]"
+
+
+
+        //Check if floor is visable
+        "mov  R0,  R9"
+        "mov  R2,  R12"
+        "cif  R2"
+        "fgt  R0,  R2"
+        "jt   R0,  _Pboth_wall_floor_skip"
+
+        //Select floor settings
+        "out  GPU_SelectedTexture, -1"
+        "out  GPU_SelectedRegion, 256"
+        "mov  R1,  {floorColor}"
+        "out  GPU_MultiplyColor, R1"
+
+        //Get floor height
+        "mov  R1,  R12"
+        "cif  R1"
+        "mov  R0,  R13"
+        "cif  R0"
+        "fmax R0,  R9"
+        "fsub R1,  R0"
+        "ceil R1"
+        "out  GPU_DrawingScaleY, R1"
+
+        //Draw floor
+        "cfi  R0"
+        "out  GPU_DrawingPointY, R0"
+        "out  GPU_Command, GPUCommand_DrawRegionZoomed"
+
+        "_Pboth_wall_floor_skip:"
+
+
+        //Check if ceiling is visable
+        "mov  R0,  R8"
+        "mov  R2,  R13"
+        "cif  R2"
+        "flt  R0,  R2"
+        "jt   R0,  _Pboth_wall_ceiling_skip"
+
+        //Select ceiling settings
+        "out  GPU_SelectedTexture, -1"
+        "out  GPU_SelectedRegion, 256"
+        "mov  R1,  {ceilingColor}"
+        "out  GPU_MultiplyColor, R1"
+
+        //Get ceiling height
+        "mov  R1,  R12"
+        "cif  R1"
+        "fmin R1,  R8"
+        "fsub R1,  R2"
+        "flr  R1"
+        "out  GPU_DrawingScaleY, R1"
+
+        //Draw ceiling
+        "mov  R2,  R2"
+        "cfi  R2"
+        "out  GPU_DrawingPointY, R13"
+        "out  GPU_Command, GPUCommand_DrawRegionZoomed"
+
+        "_Pboth_wall_ceiling_skip:"
+
+        //Reset color
+        "out  GPU_MultiplyColor, 0xFFFFFFFF"
+
+        //Check if bottom is above screen
+        "mov  R0,  R9"
+        "mov  R2,  R13"
+        "cif  R2"
+        "flt  R0,  R2"
+        "jt   R0,  _Plower_bottom_offsecreen"
+
+        //Check if top is below screen
+        "mov  R0,  R10"
+        "mov  R2,  R12"
+        "cif  R2"
+        "fgt  R0,  R2"
+        "jt   R0,  _Plower_top_offscreen"
+
+
+
+        //Check if bottom is clipped
+        "mov  R0,  R9"
+        "fgt  R0,  R2"
+        "jf   R0,  _Plower_bottom_not_clipped"
+
+        //Bottom is clipped
+
+        // screenBottom
+        "mov  {screenBottom}, R12"
+
+        // textureBottom
+        "mov  R0,  {textureTrueBottom}"
+        "mov  R2,  R9"
+        "cif  R12"
+        "fsub R2,  R12"
+        "fdiv R2,  R5"
+        "fsub R0,  R2"
+
+        // textureFullBottom
+        "mov  R2, R0"
+        "flr  R2"
+
+        // screenFullBottom
+        "fsub R0,  R2"
+        "fmul R0,  R5"
+        "fsub R12, R0"
+        "cfi  R12"
+        "mov  {screenFullBottom}, R12"
+
+        "cfi  R2"
+        "mov  {textureFullBottom}, R2"
+
+        "jmp  _Plower_bottom_clipped_end"
+
+
+
+        //Bottom is not clipped
+        "_Plower_bottom_not_clipped:"
+
+        // screenBottom
+        "mov  R1,  R9"
+        "cfi  R1"
+        "mov  {screenBottom}, R1"
+        "mov  R1,  R9"
+
+        // textureBottom
+        "mov  R0, {textureTrueBottom}"
+
+        // textureFullBottom
+        "mov  R2,  R0"
+        "flr  R2"
+
+        // screenFullBottom
+        "fsub R0,  R2"
+        "fmul R0,  R5"
+        "fsub R1,  R0"
+        "cfi  R1"
+        "mov  {screenFullBottom}, R1"
+
+        "cfi  R2"
+        "mov  {textureFullBottom}, R2"
+
+        "_Plower_bottom_clipped_end:"
+
+
+        //Check if top is clipped
+        "mov  R0,  R10"
+        "mov  R1,  R13"
+        "cif  R1"
+        "flt  R0,  R1"
+        "jf   R0,  _Plower_top_not_clipped"
+
+        //Top is clipped
+
+        // screenTop
+        "mov  {screenTop}, R13"
+
+        // textureTop
+        "mov  R0,  {textureTrueWindowBottom}"
+        "mov  R2,  R10"
+        "fsub R2,  R1"
+        "fdiv R2,  R5"
+        "fsub R0,  R2"
+
+        // textureFullTop
+        "mov  R2,  R0"
+        "ceil R2"
+
+        // screenFullTop
+        "fsub R0,  R2"
+        "fmul R0,  R5"
+        "fsub R1,  R0"
+        "cfi  R1"
+        "mov  {screenFullTop}, R1"
+
+        "cfi  R2"
+        "mov  {textureFullTop}, R2"
+
+        "jmp  _Plower_top_clipped_end"
+
+
+
+        //Top is not clipped
+        "_Plower_top_not_clipped:"
+
+        // screenTop
+        "mov  R1,  R10"
+        "cfi  R1"
+        "mov  {screenTop}, R1"
+        "mov  R1,  R10"
+
+        // textureTop
+        "mov  R0,  {textureTrueWindowBottom}"
+
+        // textureFullTop
+        "mov  R2,  R0"
+        "ceil R2"
+
+        // screenFullTop
+        "fsub R0,  R2"
+        "fmul R0,  R5"
+        "fsub R1,  R0"
+        "cfi  R1"
+        "mov  {screenFullTop}, R1"
+
+        "cfi  R2"
+        "mov  {textureFullTop}, R2"
+
+        "_Plower_top_clipped_end:"
+
+
+        //Set draw settings
+        "mov  R0,  {textureBottom}"
+        "out  GPU_SelectedTexture, R0"
+        "out  GPU_SelectedRegion, 0"
+
+        //Determine currentTextureX
+        "mov  R0,  {texOverXcurrent}"
+        "mov  R1,  {inverseXcurrent}"
+        "fdiv R0,  R1"
+
+        "mov  R1,  {textureWidthBottom}"
+        "fmod R0,  R1"
+
+        //Set X positions
+        "cfi  R0"
+        "out  GPU_RegionMinX, R0"
+        "out  GPU_RegionMaxX, R0"
+        "out  GPU_RegionHotspotX, R0"
+
+
+        //Texture Full Check
+        "mov  R0, {textureFullBottom}"
+        "mov  R1, {textureFullTop}"
+        "ile  R0, R1"
+        "jt   R0, _Plower_fullTextureSkip"
+
+        //Texture Full drawing
+        "mov  R0,  {screenFullBottom}"
+        "mov  R1,  {screenFullTop}"
+        "isub R0,  R1"
+        "mov  R1,  {textureFullBottom}"
+        "mov  R2,  {textureFullTop}"
+        "isub R1,  R2"
+        "cif  R0"
+        "cif  R1"
+        "fdiv R0,  R1"
+        "out  GPU_DrawingScaleY, R0"
+
+        "mov  R0,  {textureFullBottom}"
+        "out  GPU_RegionMinY, R2"
+        "out  GPU_RegionHotspotY, R0"
+        "isub R0,  1"
+        "out  GPU_RegionMaxY, R0"
+
+        "mov  R0,  {screenFullBottom}"
+        "out  GPU_DrawingPointY, R0"
+        "out  GPU_Command, GPUCommand_DrawRegionZoomed"
+
+        "_Plower_fullTextureSkip:"
+
+        //Texture Top Check
+        "mov  R0,  {screenFullTop}"
+        "mov  R1,  {screenTop}"
+        "ine  R1,  R0"
+        "jf   R1,  _Plower_topTextureSkip"
+
+        //Texture Top Drawing
+        "mov  R1,  {screenBottom}"
+        "imin R0,  R1"
+        "mov  R1,  {screenTop}"
+        "isub R0,  R1"
+        "cif  R0"
+        "out  GPU_DrawingScaleY, R0"
+
+        "mov  R0,  {textureFullTop}"
+        "isub R0,  1"
+        "out  GPU_RegionMinY, R0"
+        "out  GPU_RegionMaxY, R0"
+        "out  GPU_RegionHotspotY, R0"
+
+        "out  GPU_DrawingPointY, R1"
+        "out  GPU_Command, GPUCommand_DrawRegionZoomed"
+
+        "_Plower_topTextureSkip:"
+
+        //Texture Bottom Check
+        "mov  R0,  {screenFullBottom}"
+        "mov  R1,  {screenBottom}"
+        "ine  R1,  R0"
+        "jf   R1,  _Plower_bottomTextureSkip"
+
+        //Texture Bottom Drawing
+        "mov  R1,  {screenTop}"
+        "imax R0,  R1"
+        "mov  R1,  {screenBottom}"
+        "isub R1,  R0"
+        "cif  R1"
+        "out  GPU_DrawingScaleY, R1"
+
+        "mov  R1,  {textureFullBottom}"
+        "out  GPU_RegionMinY, R1"
+        "out  GPU_RegionMaxY, R1"
+        "out  GPU_RegionHotspotY, R1"
+
+        "out  GPU_DrawingPointY, R0"
+        "out  GPU_Command, GPUCommand_DrawRegionZoomed"
+
+        "_Plower_bottomTextureSkip:"
+
+
+        // Set full clipping bottom
+        "isub R3, 1"
+        "mov  R0, {screenTop}"
+        "mov  [R3], R0"
+        "iadd R3, 1"
+
+
+        "_Plower_top_offscreen:"
+
+
+
+        //Check if bottom is above screen
+        "mov  R0,  R7"
+        "mov  R2,  R13"
+        "cif  R2"
+        "flt  R0,  R2"
+        "jt   R0,  _Pupper_bottom_offsecreen"
+
+        //Check if top is below screen
+        "mov  R0,  R8"
+        "mov  R2,  R12"
+        "cif  R2"
+        "fgt  R0,  R2"
+        "jt   R0,  _Pupper_top_offscreen"
+
+
+
+        //Check if bottom is clipped
+        "mov  R2,  R12"
+        "cif  R2"
+        "mov  R0,  R7"
+        "fgt  R0,  R2"
+        "jf   R0,  _Pupper_bottom_not_clipped"
+
+        //Bottom is clipped
+
+        // screenBottom
+        "mov  {screenBottom}, R12"
+
+        // textureBottom
+        "mov  R0,  {textureTrueWindowTop}"
+        "mov  R2,  R7"
+        "cif  R12"
+        "fsub R2,  R12"
+        "fdiv R2,  R5"
+        "fsub R0,  R2"
+
+        // textureFullBottom
+        "mov  R2, R0"
+        "flr  R2"
+
+        // screenFullBottom
+        "fsub R0,  R2"
+        "fmul R0,  R5"
+        "fsub R12, R0"
+        "cfi  R12"
+        "mov  {screenFullBottom}, R12"
+
+        "cfi  R2"
+        "mov  {textureFullBottom}, R2"
+
+        "jmp  _Pupper_bottom_clipped_end"
+
+
+
+        //Bottom is not clipped
+        "_Pupper_bottom_not_clipped:"
+
+        // screenBottom
+        "mov  R1,  R7"
+        "cfi  R1"
+        "mov  {screenBottom}, R1"
+        "mov  R1,  R7"
+
+        // textureBottom
+        "mov  R0, {textureTrueWindowTop}"
+
+        // textureFullBottom
+        "mov  R2,  R0"
+        "flr  R2"
+
+        // screenFullBottom
+        "fsub R0,  R2"
+        "fmul R0,  R5"
+        "fsub R1,  R0"
+        "cfi  R1"
+        "mov  {screenFullBottom}, R1"
+
+        "cfi  R2"
+        "mov  {textureFullBottom}, R2"
+
+        "_Pupper_bottom_clipped_end:"
+
+
+        //Check if top is clipped
+        "mov  R0,  R8"
+        "mov  R1,  R13"
+        "cif  R1"
+        "flt  R0,  R1"
+        "jf   R0,  _Pupper_top_not_clipped"
+
+        //Top is clipped
+
+        // screenTop
+        "mov  {screenTop}, R13"
+
+        // textureTop
+        "mov  R0,  {textureTrueTop}"
+        "mov  R2,  R8"
+        "fsub R2,  R1"
+        "fdiv R2,  R5"
+        "fsub R0,  R2"
+
+        // textureFullTop
+        "mov  R2,  R0"
+        "ceil R2"
+
+        // screenFullTop
+        "fsub R0,  R2"
+        "fmul R0,  R5"
+        "fsub R1,  R0"
+        "cfi  R1"
+        "mov  {screenFullTop}, R1"
+
+        "cfi  R2"
+        "mov  {textureFullTop}, R2"
+
+        "jmp  _Pupper_top_clipped_end"
+
+
+
+        //Top is not clipped
+        "_Pupper_top_not_clipped:"
+
+        // screenTop
+        "mov  R1,  R8"
+        "cfi  R1"
+        "mov  {screenTop}, R1"
+        "mov  R1,  R8"
+
+        // textureTop
+        "mov  R0, {textureTrueTop}"
+
+        // textureFullTop
+        "mov  R2, R0"
+        "ceil R2"
+
+        // screenFullTop
+        "fsub R0, R2"
+        "fmul R0, R5"
+        "fsub R1, R0"
+        "cfi  R1"
+        "mov  {screenFullTop}, R1"
+
+        "cfi  R2"
+        "mov  {textureFullTop}, R2"
+
+        "_Pupper_top_clipped_end:"
+
+
+
+        //Set draw settings
+        "mov  R0,  {textureTop}"
+        "out  GPU_SelectedTexture, R0"
+        "out  GPU_SelectedRegion, 0"
+
+        //Determine currentTextureX
+        "mov  R0,  {texOverXcurrent}"
+        "mov  R1,  {inverseXcurrent}"
+        "fdiv R0,  R1"
+
+        "mov  R1,  {textureWidthTop}"
+        "fmod R0,  R1"
+
+        //Set X positions
+        "cfi  R0"
+        "out  GPU_RegionMinX, R0"
+        "out  GPU_RegionMaxX, R0"
+        "out  GPU_RegionHotspotX, R0"
+
+
+        //Texture Full Check
+        "mov  R0, {textureFullBottom}"
+        "mov  R1, {textureFullTop}"
+        "ile  R0, R1"
+        "jt   R0, _Pupper_fullTextureSkip"
+
+        //Texture Full drawing
+        "mov  R0,  {screenFullBottom}"
+        "mov  R1,  {screenFullTop}"
+        "isub R0,  R1"
+        "mov  R1,  {textureFullBottom}"
+        "mov  R2,  {textureFullTop}"
+        "isub R1,  R2"
+        "cif  R0"
+        "cif  R1"
+        "fdiv R0,  R1"
+        "out  GPU_DrawingScaleY, R0"
+
+        "mov  R0,  {textureFullBottom}"
+        "out  GPU_RegionMinY, R2"
+        "out  GPU_RegionHotspotY, R0"
+        "isub R0,  1"
+        "out  GPU_RegionMaxY, R0"
+
+        "mov  R0,  {screenFullBottom}"
+        "out  GPU_DrawingPointY, R0"
+        "out  GPU_Command, GPUCommand_DrawRegionZoomed"
+
+        "_Pupper_fullTextureSkip:"
+
+        //Texture Top Check
+        "mov  R0,  {screenFullTop}"
+        "mov  R1,  {screenTop}"
+        "ine  R1,  R0"
+        "jf   R1,  _Pupper_topTextureSkip"
+
+        //Texture Top Drawing
+        "mov  R1,  {screenBottom}"
+        "imin R0,  R1"
+        "mov  R1,  {screenTop}"
+        "isub R0,  R1"
+        "cif  R0"
+        "out  GPU_DrawingScaleY, R0"
+
+        "mov  R0,  {textureFullTop}"
+        "isub R0,  1"
+        "out  GPU_RegionMinY, R0"
+        "out  GPU_RegionMaxY, R0"
+        "out  GPU_RegionHotspotY, R0"
+
+        "out  GPU_DrawingPointY, R1"
+        "out  GPU_Command, GPUCommand_DrawRegionZoomed"
+
+        "_Pupper_topTextureSkip:"
+
+        //Texture Bottom Check
+        "mov  R0,  {screenFullBottom}"
+        "mov  R1,  {screenBottom}"
+        "ine  R1,  R0"
+        "jf   R1,  _Pupper_bottomTextureSkip"
+
+        //Texture Bottom Drawing
+        "mov  R1,  {screenTop}"
+        "imax R0,  R1"
+        "mov  R1,  {screenBottom}"
+        "isub R1,  R0"
+        "cif  R1"
+        "out  GPU_DrawingScaleY, R1"
+
+        "mov  R1,  {textureFullBottom}"
+        "out  GPU_RegionMinY, R1"
+        "out  GPU_RegionMaxY, R1"
+        "out  GPU_RegionHotspotY, R1"
+
+        "out  GPU_DrawingPointY, R0"
+        "out  GPU_Command, GPUCommand_DrawRegionZoomed"
+
+        "_Pupper_bottomTextureSkip:"
+
+
+
+
+
+        // Set full clipping top
+        "mov  R0,  {screenBottom}"
+        "mov  [R3], R0"
+
+        "jmp  _Pboth_wall_while_loop_iterators"
+
+        // Set fast clipping true
+        "_Pupper_top_offscreen:"
+        "mov  R1,  {fastClippingPointer}"
+        "iadd R1,  R11"
+        "mov  [R1], R0"
+
+        "jmp _Pboth_wall_while_loop_iterators"
+
+
+        // Set fast clipping true
+        "_Plower_bottom_offsecreen:"
+        "mov  R1,  {fastClippingPointer}"
+        "iadd R1,  R11"
+        "mov  [R1], R0"
+
+        "jmp _Pboth_wall_while_loop_iterators"
+
+        // Go to next full clipping
+        "_Pboth_wall_while_loop_iterators_add:"
+
+        "iadd R3, 1"
+
+
+        "_Pupper_bottom_offsecreen:"
+        "_Pboth_wall_while_loop_iterators:"
+
+        // While iterators
+        "mov  R1,  {topStep}"
+        "fadd R8, R1"
+
+        "mov  R1,  {windowTopStep}"
+        "fadd R7,  R1"
+
+        "mov  R1,  {windowBottomStep}"
+        "fadd R10, R1"
+
+        "mov  R1,  {bottomStep}"
+        "fadd R9,  R1"
+
+        "mov  R1,  {textureScaleStep}"
+        "fadd R5,  R1"
+
+        "isub R4,  1"
+
+        "mov  R1,  {inverseXstep}"
+        "mov  R0,  {inverseXcurrent}"
+        "fadd R0,  R1"
+        "mov  {inverseXcurrent}, R0"
+
+        "mov  R1,  {texOverXstep}"
+        "mov  R0,  {texOverXcurrent}"
+        "fadd R0,  R1"
+        "mov  {texOverXcurrent}, R0"
+
+        "iadd R3, 1"
+
+        "iadd R11, 1"
+
+        //Check loop condition
+        "jt   R4,  _Pboth_wall_while_loop_start"
+
+        "_Pboth_wall_while_loop_end:"
+    }
+
+    set_multiply_color(color_white);
+
+    return;
+}
+
+void drawPortalBottom(WallDrawData* data)
+{
+    float        xStart        = data->xStart;
+    float        xEnd          = data->xEnd;
+    float        yStart        = data->yStart;
+    float        yEnd          = data->yEnd;
+    float        textureStart  = data->textureStart;
+    float        textureEnd    = data->textureEnd;
+    float        zBottom       = data->zBottom;
+    float        zTop          = data->zTop;
+    float        zPos          = data->zPos;
+    float        textureWidth  = data->textureWidth;
+    float        textureHeight = data->textureHeight;
+    float        yOffset       = data->yOffset;
+    FrameBuffer* clipping      = data->clipping;
+    float        roomHeight    = zTop - zBottom;
+    int          floorColor    = data->floorColor;
+    int          textureNUM    = data->textureID;
+
+
+    int   columnStart = min(floor((yStart/xStart - 1.0) * -320.0), 639);
+    int   columnEnd   = min(floor((yEnd/xEnd - 1.0) * -320.0), 639);
+
+    float onScreenWidth = (float)(columnEnd - columnStart);
+    if(onScreenWidth == 0.0)
+    {
+        return;
+    }
+
+    float topStart    =  SCREENCENTERY
+    - (SCREENHEIGHT * (zTop    - zPos) / xStart);
+
+    float topEnd      = SCREENCENTERY
+    - (SCREENHEIGHT * (zTop    - zPos) / xEnd);
+
+    float bottomStart =  SCREENCENTERY
+    - (SCREENHEIGHT * (zBottom - zPos) / xStart);
+
+    float bottomEnd   = SCREENCENTERY
+    - (SCREENHEIGHT * (zBottom - zPos) / xEnd);
+
+    float currentTop = topStart;
+    float topStep    = (topEnd - topStart) / onScreenWidth;
+
+    float currentBottom = bottomStart;
+    float bottomStep    = (bottomEnd - bottomStart) / onScreenWidth;
+
+    float currentTextureScale = (bottomStart - topStart) / roomHeight;
+
+    float textureScaleStep    = (bottomEnd - topEnd - bottomStart + topStart)
+    / (roomHeight * onScreenWidth);
+
+    float texOverXstart = textureStart / xStart;
+    float texOverXend   = textureEnd   / xEnd;
+    float texOverXstep  = (texOverXend - texOverXstart) / onScreenWidth;
+
+    float inverseXstart = 1.0 / xStart;
+    float inverseXend   = 1.0 / xEnd;
+    float inverseXstep  =  (inverseXend - inverseXstart) / onScreenWidth;
+
+    float textureTrueTop      = textureHeight - yOffset - roomHeight;
+    float textureTrueBottom   = textureHeight - yOffset;
+    int*  fullClippingPointer = &(clipping->full[columnStart*2]);
+    int*  fastClippingPointer = &(clipping->fast[0]);
+    int   screenTop;
+    int   screenBottom;
+    int   screenFullTop;
+    int   screenFullBottom;
+    int   textureFullTop;
+    int   textureFullBottom;
+
+
+    select_texture(textureNUM);
+    select_region(0);
+
+    set_drawing_scale(1.0, 1.0);
+
+    asm
+    {
+        //Initialize registers
+        "mov  R4,  {texOverXstart}"
+        "mov  R5,  {inverseXstart}"
+        "mov  R7,  {onScreenWidth}"
+        "cfi  R7"
+        "iadd R7,  1"
+        "mov  R8,  {currentTextureScale}"
+        "mov  R9,  {currentBottom}"
+        "mov  R10, {currentTop}"
+        "mov  R11, {columnStart}"
+        "mov  R13, {fullClippingPointer}"
+
+        //Loop start
+        "_Bwall_while_loop_start:"
+
+        //Check fast clipping
+        "mov  R1,  {fastClippingPointer}"
+        "iadd R1,  R11"
+        "mov  R0,  [R1]"
+        "jt   R0,  _Bwall_while_loop_iterators_add"
+
+        //Get bottom clipping
+        "mov  R12, [R13]"
+        "iadd R13, 1"
+
+        //Check if top is below screen
+        "mov  R0,  R10"
+        "mov  R3,  R12"
+        "cif  R3"
+        "fgt  R0,  R3"
+        "jt   R0,  _Btop_offscreen"
+
+        //Check if bottom is above screen
+        "mov  R0,  R9"
+        "mov  R2,  [R13]"
+        "cif  R2"
+        "flt  R0,  R2"
+        "jt   R0,  _Bbottom_offsecreen"
+
+        //Set X drawing point
+        "out  GPU_DrawingPointX,  R11"
+
+        //Determine currentTextureX
+        "mov  R0,  R4"
+        "fdiv R0,  R5"
+
+        "mov  R1,  {textureWidth}"
+        "fmod R0,  R1"
+
+        //Set X positions
+        "cfi  R0"
+        "out  GPU_RegionMinX, R0"
+        "out  GPU_RegionMaxX, R0"
+        "out  GPU_RegionHotspotX, R0"
+
+
+        //Check if bottom is clipped
+        "mov  R0,  R9"
+        "fgt  R0,  R3"
+        "jf   R0,  _Bbottom_not_clipped"
+
+        //Bottom is clipped
+
+        // screenBottom
+        "mov  {screenBottom}, R12"
+
+        // textureBottom
+        "mov  R0,  {textureTrueBottom}"
+        "mov  R2,  R9"
+        "cif  R12"
+        "fsub R2,  R12"
+        "fdiv R2,  R8"
+        "fsub R0,  R2"
+
+        // textureFullBottom
+        "mov  R2, R0"
+        "flr  R2"
+
+        // screenFullBottom
+        "fsub R0,  R2"
+        "fmul R0,  R8"
+        "fsub R12, R0"
+        "cfi  R12"
+        "mov  {screenFullBottom}, R12"
+
+        "cfi  R2"
+        "mov  {textureFullBottom}, R2"
+
+        "jmp  _Bbottom_clipped_end"
+
+
+
+        //Bottom is not clipped
+        "_Bbottom_not_clipped:"
+
+        //Select floor settings
+        "in   R0,  GPU_SelectedTexture"
+        "out  GPU_SelectedTexture, -1"
+        "out  GPU_SelectedRegion, 256"
+        "mov  R1,  {floorColor}"
+        "out  GPU_MultiplyColor, R1"
+
+        //Get floor height
+        "mov  R1,  R12"
+        "cif  R1"
+        "fsub R1,  R9"
+        "ceil R1"
+        "out  GPU_DrawingScaleY, R1"
+
+        //Draw floor
+        "mov  R1,  R9"
+        "cfi  R1"
+        "out  GPU_DrawingPointY, R1"
+        "out  GPU_Command, GPUCommand_DrawRegionZoomed"
+
+        //Reset settings
+        "out  GPU_MultiplyColor, 0xFFFFFFFF"
+        "mov  R0,  {textureNUM}"
+        "out  GPU_SelectedTexture, R0"
+        "out  GPU_SelectedRegion, 0"
+
+
+        // screenBottom
+        "mov  R1,  R9"
+        "cfi  R1"
+        "mov  {screenBottom}, R1"
+        "mov  R1,  R9"
+
+        // textureBottom
+        "mov  R0, {textureTrueBottom}"
+
+        // textureFullBottom
+        "mov  R2,  R0"
+        "flr  R2"
+
+        // screenFullBottom
+        "fsub R0,  R2"
+        "fmul R0,  R8"
+        "fsub R1,  R0"
+        "cfi  R1"
+        "mov  {screenFullBottom}, R1"
+
+        "cfi  R2"
+        "mov  {textureFullBottom}, R2"
+
+        "_Bbottom_clipped_end:"
+
+
+        //Get top clipping
+        "mov  R12, [R13]"
+
+        //Check if top is clipped
+        "mov  R0,  R10"
+        "mov  R1,  R12"
+        "cif  R1"
+        "flt  R0,  R1"
+        "jf   R0,  _Btop_not_clipped"
+
+        //Top is clipped
+
+        // screenTop
+        "mov  {screenTop}, R12"
+
+        // textureTop
+        "mov  R0,  {textureTrueTop}"
+        "mov  R2,  R10"
+        "fsub R2,  R1"
+        "fdiv R2,  R8"
+        "fsub R0,  R2"
+
+        // textureFullTop
+        "mov  R2,  R0"
+        "ceil R2"
+
+        // screenFullTop
+        "fsub R0,  R2"
+        "fmul R0,  R8"
+        "fsub R1,  R0"
+        "cfi  R1"
+        "mov  {screenFullTop}, R1"
+
+        "cfi  R2"
+        "mov  {textureFullTop}, R2"
+
+        "jmp  _Btop_clipped_end"
+
+
+
+        //Top is not clipped
+        "_Btop_not_clipped:"
+
+        // screenTop
+        "mov  R1,  R10"
+        "cfi  R1"
+        "mov  {screenTop}, R1"
+        "mov  R1,  R10"
+
+        // textureTop
+        "mov  R0, {textureTrueTop}"
+
+        // textureFullTop
+        "mov  R2, R0"
+        "ceil R2"
+
+        // screenFullTop
+        "fsub R0, R2"
+        "fmul R0, R8"
+        "fsub R1, R0"
+        "cfi  R1"
+        "mov  {screenFullTop}, R1"
+
+        "cfi  R2"
+        "mov  {textureFullTop}, R2"
+
+        "_Btop_clipped_end:"
+
+
+
+
+        //Texture Full Check
+        "mov  R2, {textureFullBottom}"
+        "mov  R3, {textureFullTop}"
+        "ile  R2, R3"
+        "jt   R2, _BfullTextureSkip"
+
+        //Texture Full drawing
+        "mov  R0,  {screenFullBottom}"
+        "mov  R1,  {screenFullTop}"
+        "mov  R2,  {textureFullBottom}"
+        "mov  R3,  {textureFullTop}"
+        "isub R0,  R1"
+        "isub R2,  R3"
+        "cif  R0"
+        "cif  R2"
+        "fdiv R0,  R2"
+        "out  GPU_DrawingScaleY, R0"
+
+        "mov  R2,  {textureFullBottom}"
+        "out  GPU_RegionMinY, R3"
+        "out  GPU_RegionHotspotY, R2"
+        "isub R2,  1"
+        "out  GPU_RegionMaxY, R2"
+
+        "mov  R0,  {screenFullBottom}"
+        "out  GPU_DrawingPointY, R0"
+        "out  GPU_Command, GPUCommand_DrawRegionZoomed"
+
+        "_BfullTextureSkip:"
+
+        //Texture Top Check
+        "mov  R0,  {screenFullTop}"
+        "mov  R1,  {screenTop}"
+        "ine  R1,  R0"
+        "jf   R1,  _BtopTextureSkip"
+
+        //Texture Top Drawing
+        "mov  R1,  {screenBottom}"
+        "imin R0,  R1"
+        "mov  R1,  {screenTop}"
+        "isub R0,  R1"
+        "cif  R0"
+        "out  GPU_DrawingScaleY, R0"
+
+        "mov  R0,  {textureFullTop}"
+        "isub R0,  1"
+        "out  GPU_RegionMinY, R0"
+        "out  GPU_RegionMaxY, R0"
+        "out  GPU_RegionHotspotY, R0"
+
+        "out  GPU_DrawingPointY, R1"
+        "out  GPU_Command, GPUCommand_DrawRegionZoomed"
+
+        "_BtopTextureSkip:"
+
+        //Texture Bottom Check
+        "mov  R0,  {screenFullBottom}"
+        "mov  R1,  {screenBottom}"
+        "ine  R1,  R0"
+        "jf   R1,  _BbottomTextureSkip"
+
+        //Texture Bottom Drawing
+        "mov  R1,  {screenTop}"
+        "imax R0,  R1"
+        "mov  R1,  {screenBottom}"
+        "isub R1,  R0"
+        "cif  R1"
+        "out  GPU_DrawingScaleY, R1"
+
+        "mov  R1,  {textureFullBottom}"
+        "out  GPU_RegionMinY, R1"
+        "out  GPU_RegionMaxY, R1"
+        "out  GPU_RegionHotspotY, R1"
+
+        "out  GPU_DrawingPointY, R0"
+        "out  GPU_Command, GPUCommand_DrawRegionZoomed"
+
+        "_BbottomTextureSkip:"
+
+
+        // Set full clipping
+        "isub R13, 1"
+        "mov  R12, {screenTop}"
+        "mov  [R13], R12"
+        "iadd R13, 2"
+
+        "jmp _Bwall_while_loop_iterators"
+
+        // Go to next full clipping
+        "_Bwall_while_loop_iterators_add:"
+
+        "iadd R13, 2"
+
+        "jmp _Bwall_while_loop_iterators"
+
+        // Set fast clipping true
+        "_Bbottom_offsecreen:"
+        "mov  [R1], R0"
+
+        // Go to next full clipping
+        "_Btop_offscreen:"
+        "iadd R13, 1"
+
+
+        "_Bwall_while_loop_iterators:"
+
+        // While iterators
+        "mov  R1,  {topStep}"
+        "fadd R10, R1"
+
+        "mov  R1,  {bottomStep}"
+        "fadd R9,  R1"
+
+        "mov  R1,  {textureScaleStep}"
+        "fadd R8,  R1"
+
+        "isub R7,  1"
+
+        "mov  R1,  {inverseXstep}"
+        "fadd R5,  R1"
+
+        "mov  R1,  {texOverXstep}"
+        "fadd R4,  R1"
+
+        "iadd R11, 1"
+
+        //Check loop condition
+        "jt   R7,  _Bwall_while_loop_start"
+
+        "_Bwall_while_loop_end:"
+    }
+
+    set_multiply_color(color_white);
+
+    return;
+}
+
+
+void drawPortalTop(WallDrawData* data)
+{
+    float        xStart        = data->xStart;
+    float        xEnd          = data->xEnd;
+    float        yStart        = data->yStart;
+    float        yEnd          = data->yEnd;
+    float        textureStart  = data->textureStart;
+    float        textureEnd    = data->textureEnd;
+    float        zBottom       = data->zBottom;
+    float        zTop          = data->zTop;
+    float        zPos          = data->zPos;
+    float        textureWidth  = data->textureWidth;
+    float        textureHeight = data->textureHeight;
+    float        yOffset       = data->yOffset;
+    FrameBuffer* clipping      = data->clipping;
+    float        roomHeight    = zTop - zBottom;
+    int          ceilingColor  = data->ceilingColor;
+    int          textureNUM    = data->textureID;
+
+
+    int   columnStart = min(floor((yStart/xStart - 1.0) * -320.0), 639);
+    int   columnEnd   = min(floor((yEnd/xEnd - 1.0) * -320.0), 639);
+
+    float onScreenWidth = (float)(columnEnd - columnStart + 1);
+    if(onScreenWidth == 0.0)
+    {
+        return;
+    }
+
+    float topStart    =  SCREENCENTERY
+    - (SCREENHEIGHT * (zTop    - zPos) / xStart);
+
+    float topEnd      = SCREENCENTERY
+    - (SCREENHEIGHT * (zTop    - zPos) / xEnd);
+
+    float bottomStart =  SCREENCENTERY
+    - (SCREENHEIGHT * (zBottom - zPos) / xStart);
+
+    float bottomEnd   = SCREENCENTERY
+    - (SCREENHEIGHT * (zBottom - zPos) / xEnd);
+
+    float currentTop = topStart;
+    float topStep    = (topEnd - topStart) / onScreenWidth;
+
+    float currentBottom = bottomStart;
+    float bottomStep    = (bottomEnd - bottomStart) / onScreenWidth;
+
+    float currentTextureScale = (bottomStart - topStart) / roomHeight;
+
+    float textureScaleStep    = (bottomEnd - topEnd - bottomStart + topStart)
+    / (roomHeight * onScreenWidth);
+
+    float texOverXstart = textureStart / xStart;
+    float texOverXend   = textureEnd   / xEnd;
+    float texOverXstep  = (texOverXend - texOverXstart) / onScreenWidth;
+
+    float inverseXstart = 1.0 / xStart;
+    float inverseXend   = 1.0 / xEnd;
+    float inverseXstep  =  (inverseXend - inverseXstart) / onScreenWidth;
+
+    float textureTrueTop      = textureHeight - yOffset - roomHeight;
+    float textureTrueBottom   = textureHeight - yOffset;
+    int*  fullClippingPointer = &(clipping->full[columnStart*2]);
+    int*  fastClippingPointer = &(clipping->fast[0]);
+    int   screenTop;
+    int   screenBottom;
+    int   screenFullTop;
+    int   screenFullBottom;
+    int   textureFullTop;
+    int   textureFullBottom;
+
+
+    select_texture(textureNUM);
+    select_region(0);
+
+    set_drawing_scale(1.0, 1.0);
+
+    asm
+    {
+        //Initialize registers
+        "mov  R4,  {texOverXstart}"
+        "mov  R5,  {inverseXstart}"
+        "mov  R7,  {onScreenWidth}"
+        "cfi  R7"
+        "iadd R7,  1"
+        "mov  R8,  {currentTextureScale}"
+        "mov  R9,  {currentBottom}"
+        "mov  R10, {currentTop}"
+        "mov  R11, {columnStart}"
+        "mov  R13, {fullClippingPointer}"
+
+        //Loop start
+        "_Twall_while_loop_start:"
+
+        //Check fast clipping
+        "mov  R1,   {fastClippingPointer}"
+        "iadd R1,   R11"
+        "mov  R0,   [R1]"
+        "jt   R0,   _Twall_while_loop_iterators_add"
+
+        //Get bottom clipping
+        "mov  R12, [R13]"
+        "iadd R13, 1"
+
+        //Check if top is below screen
+        "mov  R0,  R10"
+        "mov  R3,  R12"
+        "cif  R3"
+        "fgt  R0,  R3"
+        "jt   R0,  _Ttop_offscreen"
+
+        //Check if bottom is above screen
+        "mov  R0,  R9"
+        "mov  R1,  [R13]"
+        "cif  R1"
+        "flt  R0,  R1"
+        "jt   R0,  _Tbottom_offsecreen"
+
+        //Set X drawing point
+        "out  GPU_DrawingPointX,  R11"
+
+        //Determine currentTextureX
+        "mov  R0,  R4"
+        "fdiv R0,  R5"
+
+        "mov  R1,  {textureWidth}"
+        "fmod R0,  R1"
+
+        //Set X positions
+        "cfi  R0"
+        "out  GPU_RegionMinX, R0"
+        "out  GPU_RegionMaxX, R0"
+        "out  GPU_RegionHotspotX, R0"
+
+
+        //Check if bottom is clipped
+        "mov  R0,  R9"
+        "fgt  R0,  R3"
+        "jf   R0,  _Tbottom_not_clipped"
+
+        //Bottom is clipped
+
+        // screenBottom
+        "mov  {screenBottom}, R12"
+
+        // textureBottom
+        "mov  R0,  {textureTrueBottom}"
+        "mov  R2,  R9"
+        "cif  R12"
+        "fsub R2,  R12"
+        "fdiv R2,  R8"
+        "fsub R0,  R2"
+
+        // textureFullBottom
+        "mov  R2, R0"
+        "flr  R2"
+
+        // screenFullBottom
+        "fsub R0,  R2"
+        "fmul R0,  R8"
+        "fsub R12, R0"
+        "cfi  R12"
+        "mov  {screenFullBottom}, R12"
+
+        "cfi  R2"
+        "mov  {textureFullBottom}, R2"
+
+        "jmp  _Tbottom_clipped_end"
+
+
+
+        //Bottom is not clipped
+        "_Tbottom_not_clipped:"
+
+        // screenBottom
+        "mov  R1,  R9"
+        "cfi  R1"
+        "mov  {screenBottom}, R1"
+        "mov  R1,  R9"
+
+        // textureBottom
+        "mov  R0, {textureTrueBottom}"
+
+        // textureFullBottom
+        "mov  R2,  R0"
+        "flr  R2"
+
+        // screenFullBottom
+        "fsub R0,  R2"
+        "fmul R0,  R8"
+        "fsub R1,  R0"
+        "cfi  R1"
+        "mov  {screenFullBottom}, R1"
+
+        "cfi  R2"
+        "mov  {textureFullBottom}, R2"
+
+        "_Tbottom_clipped_end:"
+
+
+        //Get top clipping
+        "mov  R12, [R13]"
+
+        //Check if top is clipped
+        "mov  R0,  R10"
+        "mov  R1,  R12"
+        "cif  R1"
+        "flt  R0,  R1"
+        "jf   R0,  _Ttop_not_clipped"
+
+        //Top is clipped
+
+        // screenTop
+        "mov  {screenTop}, R12"
+
+        // textureTop
+        "mov  R0,  {textureTrueTop}"
+        "mov  R2,  R10"
+        "fsub R2,  R1"
+        "fdiv R2,  R8"
+        "fsub R0,  R2"
+
+        // textureFullTop
+        "mov  R2,  R0"
+        "ceil R2"
+
+        // screenFullTop
+        "fsub R0,  R2"
+        "fmul R0,  R8"
+        "fsub R1,  R0"
+        "cfi  R1"
+        "mov  {screenFullTop}, R1"
+
+        "cfi  R2"
+        "mov  {textureFullTop}, R2"
+
+        "jmp  _Ttop_clipped_end"
+
+
+
+        //Top is not clipped
+        "_Ttop_not_clipped:"
+
+        //Select ceiling settings
+        "in   R0,  GPU_SelectedTexture"
+        "out  GPU_SelectedTexture, -1"
+        "out  GPU_SelectedRegion, 256"
+        "mov  R2,  {ceilingColor}"
+        "out  GPU_MultiplyColor, R2"
+
+        //Get ceiling height
+        "mov  R2,  R10"
+        "fsub R2,  R1"
+        "flr  R2"
+        "out  GPU_DrawingScaleY, R2"
+
+        //Draw ceiling
+        "mov  R2,  R1"
+        "cfi  R2"
+        "out  GPU_DrawingPointY, R2"
+        "out  GPU_Command, GPUCommand_DrawRegionZoomed"
+
+        //Reset settings
+        "out  GPU_MultiplyColor, 0xFFFFFFFF"
+        "mov  R0,  {textureNUM}"
+        "out  GPU_SelectedTexture, R0"
+        "out  GPU_SelectedRegion, 0"
+
+
+        // screenTop
+        "mov  R1,  R10"
+        "cfi  R1"
+        "mov  {screenTop}, R1"
+        "mov  R1,  R10"
+
+        // textureTop
+        "mov  R0, {textureTrueTop}"
+
+        // textureFullTop
+        "mov  R2, R0"
+        "ceil R2"
+
+        // screenFullTop
+        "fsub R0, R2"
+        "fmul R0, R8"
+        "fsub R1, R0"
+        "cfi  R1"
+        "mov  {screenFullTop}, R1"
+
+        "cfi  R2"
+        "mov  {textureFullTop}, R2"
+
+        "_Ttop_clipped_end:"
+
+
+
+
+        //Texture Full Check
+        "mov  R2, {textureFullBottom}"
+        "mov  R3, {textureFullTop}"
+        "ile  R2, R3"
+        "jt   R2, _TfullTextureSkip"
+
+        //Texture Full drawing
+        "mov  R0,  {screenFullBottom}"
+        "mov  R1,  {screenFullTop}"
+        "mov  R2,  {textureFullBottom}"
+        "mov  R3,  {textureFullTop}"
+        "isub R0,  R1"
+        "isub R2,  R3"
+        "cif  R0"
+        "cif  R2"
+        "fdiv R0,  R2"
+        "out  GPU_DrawingScaleY, R0"
+
+        "mov  R2,  {textureFullBottom}"
+        "out  GPU_RegionMinY, R3"
+        "out  GPU_RegionHotspotY, R2"
+        "isub R2,  1"
+        "out  GPU_RegionMaxY, R2"
+
+        "mov  R0,  {screenFullBottom}"
+        "out  GPU_DrawingPointY, R0"
+        "out  GPU_Command, GPUCommand_DrawRegionZoomed"
+
+        "_TfullTextureSkip:"
+
+        //Texture Top Check
+        "mov  R0,  {screenFullTop}"
+        "mov  R1,  {screenTop}"
+        "ine  R1,  R0"
+        "jf   R1,  _TtopTextureSkip"
+
+        //Texture Top Drawing
+        "mov  R1,  {screenBottom}"
+        "imin R0,  R1"
+        "mov  R1,  {screenTop}"
+        "isub R0,  R1"
+        "cif  R0"
+        "out  GPU_DrawingScaleY, R0"
+
+        "mov  R0,  {textureFullTop}"
+        "isub R0,  1"
+        "out  GPU_RegionMinY, R0"
+        "out  GPU_RegionMaxY, R0"
+        "out  GPU_RegionHotspotY, R0"
+
+        "out  GPU_DrawingPointY, R1"
+        "out  GPU_Command, GPUCommand_DrawRegionZoomed"
+
+        "_TtopTextureSkip:"
+
+        //Texture Bottom Check
+        "mov  R0,  {screenFullBottom}"
+        "mov  R1,  {screenBottom}"
+        "ine  R1,  R0"
+        "jf   R1,  _TbottomTextureSkip"
+
+        //Texture Bottom Drawing
+        "mov  R1,  {screenTop}"
+        "imax R0,  R1"
+        "mov  R1,  {screenBottom}"
+        "isub R1,  R0"
+        "cif  R1"
+        "out  GPU_DrawingScaleY, R1"
+
+        "mov  R1,  {textureFullBottom}"
+        "out  GPU_RegionMinY, R1"
+        "out  GPU_RegionMaxY, R1"
+        "out  GPU_RegionHotspotY, R1"
+
+        "out  GPU_DrawingPointY, R0"
+        "out  GPU_Command, GPUCommand_DrawRegionZoomed"
+
+        "_TbottomTextureSkip:"
+
+
+        // Set full clipping
+        "mov  R12, {screenBottom}"
+        "mov  [R13], R12"
+        "iadd R13, 1"
+
+        "jmp  _Twall_while_loop_iterators"
+
+        // Go to next full clipping
+        "_Twall_while_loop_iterators_add:"
+
+        "iadd R13, 2"
+
+        "jmp  _Twall_while_loop_iterators"
+
+
+        // Set fast clipping true
+        "_Ttop_offscreen:"
+        "mov  [R1], R0"
+
+        // Go to next full clipping
+        "_Tbottom_offsecreen:"
+        "iadd R13, 1"
+
+
+        "_Twall_while_loop_iterators:"
+
+        // While iterators
+        "mov  R1,  {topStep}"
+        "fadd R10, R1"
+
+        "mov  R1,  {bottomStep}"
+        "fadd R9,  R1"
+
+        "mov  R1,  {textureScaleStep}"
+        "fadd R8,  R1"
+
+        "isub R7,  1"
+
+        "mov  R1,  {inverseXstep}"
+        "fadd R5,  R1"
+
+        "mov  R1,  {texOverXstep}"
+        "fadd R4,  R1"
+
+        "iadd R11, 1"
+
+        //Check loop condition
+        "jt   R7,  _Twall_while_loop_start"
+
+        "_Twall_while_loop_end:"
+    }
+
+    set_multiply_color(color_white);
+
+    return;
+}
+
+
+
+void drawWall(WallDrawData* data)
+{
+    float        xStart        = data->xStart;
+    float        xEnd          = data->xEnd;
+    float        yStart        = data->yStart;
+    float        yEnd          = data->yEnd;
+    float        textureStart  = data->textureStart;
+    float        textureEnd    = data->textureEnd;
+    float        zBottom       = data->zBottom;
+    float        zTop          = data->zTop;
+    float        zPos          = data->zPos;
+    float        textureWidth  = data->textureWidth;
+    float        textureHeight = data->textureHeight;
+    float        yOffset       = data->yOffset;
+    FrameBuffer* clipping      = data->clipping;
+    float        roomHeight    = zTop - zBottom;
+    int          floorColor    = data->floorColor;
+    int          ceilingColor  = data->ceilingColor;
+    int          textureNUM    = data->textureID;
+
+
+    int   columnStart = min(floor((yStart/xStart - 1.0) * -320.0), 639);
+    int   columnEnd   = min(floor((yEnd/xEnd - 1.0) * -320.0), 639);
+
+    float onScreenWidth = (float)(columnEnd - columnStart);
+    if(onScreenWidth == 0.0)
+    {
+        return;
+    }
+
+    float topStart    =  SCREENCENTERY
+                      - (SCREENHEIGHT * (zTop    - zPos) / xStart);
+
+    float topEnd      = SCREENCENTERY
+                      - (SCREENHEIGHT * (zTop    - zPos) / xEnd);
+
+    float bottomStart =  SCREENCENTERY
+                      - (SCREENHEIGHT * (zBottom - zPos) / xStart);
+
+    float bottomEnd   = SCREENCENTERY
+                      - (SCREENHEIGHT * (zBottom - zPos) / xEnd);
+
+    float currentTop = topStart;
+    float topStep    = (topEnd - topStart) / onScreenWidth;
+
+    float currentBottom = bottomStart;
+    float bottomStep    = (bottomEnd - bottomStart) / onScreenWidth;
+
+    float currentTextureScale = (bottomStart - topStart) / roomHeight;
+
+    float textureScaleStep    = (bottomEnd - topEnd - bottomStart + topStart)
+                              / (roomHeight * onScreenWidth);
+
+    float texOverXstart = textureStart / xStart;
+    float texOverXend   = textureEnd   / xEnd;
+    float texOverXstep  = (texOverXend - texOverXstart) / onScreenWidth;
+
+    float inverseXstart = 1.0 / xStart;
+    float inverseXend   = 1.0 / xEnd;
+    float inverseXstep  =  (inverseXend - inverseXstart) / onScreenWidth;
+
+    float textureTrueTop      = textureHeight - yOffset - roomHeight;
+    float textureTrueBottom   = textureHeight - yOffset;
+    int*  fullClippingPointer = &(clipping->full[columnStart*2]);
+    int*  fastClippingPointer = &(clipping->fast[0]);
+    int   screenTop;
+    int   screenBottom;
+    int   screenFullTop;
+    int   screenFullBottom;
+    int   textureFullTop;
+    int   textureFullBottom;
+
+
+    select_texture(textureNUM);
+    set_drawing_scale(1.0, 1.0);
+    select_region(0);
+
+    asm
+    {
+        //Initialize registers
+        "mov  R4,  {texOverXstart}"
+        "mov  R5,  {inverseXstart}"
+        "mov  R7,  {onScreenWidth}"
+        "cfi  R7"
+        "iadd R7,  1"
+        "mov  R8,  {currentTextureScale}"
+        "mov  R9,  {currentBottom}"
+        "mov  R10, {currentTop}"
+        "mov  R11, {columnStart}"
+        "mov  R13, {fullClippingPointer}"
+
+        //Loop start
+        "_wall_while_loop_start:"
+
+        //Check fast clipping
+        "mov  R1,   {fastClippingPointer}"
+        "iadd R1,   R11"
+        "mov  R0,   [R1]"
+        "jt   R0,   _wall_while_loop_iterators_add"
+        "mov  R0,   1"
+        "mov  [R1], R0"
+
+        //Set X drawing point
+        "out  GPU_DrawingPointX, R11"
+
+        //Get bottom clipping
+        "mov  R12, [R13]"
+        "iadd R13, 1"
+
+        //Check if top is below screen
+        "mov  R0,  R10"
+        "mov  R3,  R12"
+        "cif  R3"
+        "fgt  R0,  R3"
+        "jt   R0,  _top_offscreen"
+
+        //Check if bottom is above screen
+        "mov  R0,  R9"
+        "mov  R1,  [R13]"
+        "cif  R1"
+        "flt  R0,  R1"
+        "jt   R0,  _bottom_offsecreen"
+
+        //Determine currentTextureX
+        "mov  R0,  R4"
+        "fdiv R0,  R5"
+
+        "mov  R1,  {textureWidth}"
+        "fmod R0,  R1"
+
+        //Set X positions
+        "cfi  R0"
+        "out  GPU_RegionMinX, R0"
+        "out  GPU_RegionMaxX, R0"
+        "out  GPU_RegionHotspotX, R0"
+
+
+        //Check if bottom is clipped
+        "mov  R0,  R9"
+        "fgt  R0,  R3"
+        "jf   R0,  _bottom_not_clipped"
+
+        //Bottom is clipped
+
+        // screenBottom
+        "mov  {screenBottom}, R12"
+
+        // textureBottom
+        "mov  R0,  {textureTrueBottom}"
+        "mov  R2,  R9"
+        "cif  R12"
+        "fsub R2,  R12"
+        "fdiv R2,  R8"
+        "fsub R0,  R2"
+
+        // textureFullBottom
+        "mov  R2, R0"
+        "flr  R2"
+
+        // screenFullBottom
+        "fsub R0,  R2"
+        "fmul R0,  R8"
+        "fsub R12, R0"
+        "cfi  R12"
+        "mov  {screenFullBottom}, R12"
+
+        "cfi  R2"
+        "mov  {textureFullBottom}, R2"
+
+        "jmp  _bottom_clipped_end"
+
+
+
+        //Bottom is not clipped
+        "_bottom_not_clipped:"
+
+        //Select floor settings
+        "in   R0,  GPU_SelectedTexture"
+        "out  GPU_SelectedTexture, -1"
+        "out  GPU_SelectedRegion, 256"
+        "mov  R2,  {floorColor}"
+        "out  GPU_MultiplyColor, R2"
+
+        //Get floor height
+        "mov  R2,  R12"
+        "cif  R2"
+        "fsub R2,  R9"
+        "ceil R2"
+        "out  GPU_DrawingScaleY, R2"
+
+        //Draw floor
+        "mov  R2,  R9"
+        "cfi  R2"
+        "out  GPU_DrawingPointY, R2"
+        "out  GPU_Command, GPUCommand_DrawRegionZoomed"
+
+        //Reset settings
+        "out  GPU_MultiplyColor, 0xFFFFFFFF"
+        "mov  R0,  {textureNUM}"
+        "out  GPU_SelectedTexture, R0"
+        "out  GPU_SelectedRegion, 0"
+
+        // screenBottom
+        "mov  R1,  R9"
+        "cfi  R1"
+        "mov  {screenBottom}, R1"
+        "mov  R1,  R9"
+
+        // textureBottom
+        "mov  R0, {textureTrueBottom}"
+
+        // textureFullBottom
+        "mov  R2,  R0"
+        "flr  R2"
+
+        // screenFullBottom
+        "fsub R0,  R2"
+        "fmul R0,  R8"
+        "fsub R1,  R0"
+        "cfi  R1"
+        "mov  {screenFullBottom}, R1"
+
+        "cfi  R2"
+        "mov  {textureFullBottom}, R2"
+
+        "_bottom_clipped_end:"
+
+
+        //Get top clipping
+        "mov  R12, [R13]"
+        "iadd R13, 1"
+
+        //Check if top is clipped
+        "mov  R0,  R10"
+        "mov  R1,  R12"
+        "cif  R1"
+        "flt  R0,  R1"
+        "jf   R0,  _top_not_clipped"
+
+        //Top is clipped
+
+        // screenTop
+        "mov  {screenTop}, R12"
+
+        // textureTop
+        "mov  R0,  {textureTrueTop}"
+        "mov  R2,  R10"
+        "fsub R2,  R1"
+        "fdiv R2,  R8"
+        "fsub R0,  R2"
+
+        // textureFullTop
+        "mov  R2,  R0"
+        "ceil R2"
+
+        // screenFullTop
+        "fsub R0,  R2"
+        "fmul R0,  R8"
+        "fsub R1,  R0"
+        "cfi  R1"
+        "mov  {screenFullTop}, R1"
+
+        "cfi  R2"
+        "mov  {textureFullTop}, R2"
+
+        "jmp  _top_clipped_end"
+
+
+
+        //Top is not clipped
+        "_top_not_clipped:"
+
+        //Select ceiling settings
+        "in   R0,  GPU_SelectedTexture"
+        "out  GPU_SelectedTexture, -1"
+        "out  GPU_SelectedRegion, 256"
+        "mov  R2,  {ceilingColor}"
+        "out  GPU_MultiplyColor, R2"
+
+        //Get ceiling height
+        "mov  R2,  R10"
+        "fsub R2,  R1"
+        "flr  R2"
+        "out  GPU_DrawingScaleY, R2"
+
+        //Draw ceiling
+        "mov  R2,  R1"
+        "cfi  R2"
+        "out  GPU_DrawingPointY, R2"
+        "out  GPU_Command, GPUCommand_DrawRegionZoomed"
+
+        //Reset settings
+        "out  GPU_MultiplyColor, 0xFFFFFFFF"
+        "mov  R0,  {textureNUM}"
+        "out  GPU_SelectedTexture, R0"
+        "out  GPU_SelectedRegion, 0"
+
+        // screenTop
+        "mov  R1,  R10"
+        "cfi  R1"
+        "mov  {screenTop}, R1"
+        "mov  R1,  R10"
+
+        // textureTop
+        "mov  R0, {textureTrueTop}"
+
+        // textureFullTop
+        "mov  R2, R0"
+        "ceil R2"
+
+        // screenFullTop
+        "fsub R0, R2"
+        "fmul R0, R8"
+        "fsub R1, R0"
+        "cfi  R1"
+        "mov  {screenFullTop}, R1"
+
+        "cfi  R2"
+        "mov  {textureFullTop}, R2"
+
+        "_top_clipped_end:"
+
+
+
+
+        //Texture Full Check
+        "mov  R2, {textureFullBottom}"
+        "mov  R3, {textureFullTop}"
+        "ile  R2, R3"
+        "jt   R2, _fullTextureSkip"
+
+        //Texture Full drawing
+        "mov  R0,  {screenFullBottom}"
+        "mov  R1,  {screenFullTop}"
+        "mov  R2,  {textureFullBottom}"
+        "mov  R3,  {textureFullTop}"
+        "isub R0,  R1"
+        "isub R2,  R3"
+        "cif  R0"
+        "cif  R2"
+        "fdiv R0,  R2"
+        "out  GPU_DrawingScaleY, R0"
+
+        "mov  R2,  {textureFullBottom}"
+        "out  GPU_RegionMinY, R3"
+        "out  GPU_RegionHotspotY, R2"
+        "isub R2,  1"
+        "out  GPU_RegionMaxY, R2"
+
+        "mov  R0,  {screenFullBottom}"
+        "out  GPU_DrawingPointY, R0"
+        "out  GPU_Command, GPUCommand_DrawRegionZoomed"
+
+        "_fullTextureSkip:"
+
+        //Texture Top Check
+        "mov  R0,  {screenFullTop}"
+        "mov  R1,  {screenTop}"
+        "ine  R1,  R0"
+        "jf   R1,  _topTextureSkip"
+
+        //Texture Top Drawing
+        "mov  R1,  {screenBottom}"
+        "imin R0,  R1"
+        "mov  R1,  {screenTop}"
+        "isub R0,  R1"
+        "cif  R0"
+        "out  GPU_DrawingScaleY, R0"
+
+        "mov  R0,  {textureFullTop}"
+        "isub R0,  1"
+        "out  GPU_RegionMinY, R0"
+        "out  GPU_RegionMaxY, R0"
+        "out  GPU_RegionHotspotY, R0"
+
+        "out  GPU_DrawingPointY, R1"
+        "out  GPU_Command, GPUCommand_DrawRegionZoomed"
+
+        "_topTextureSkip:"
+
+        //Texture Bottom Check
+        "mov  R0,  {screenFullBottom}"
+        "mov  R1,  {screenBottom}"
+        "ine  R1,  R0"
+        "jf   R1,  _bottomTextureSkip"
+
+        //Texture Bottom Drawing
+        "mov  R1,  {screenTop}"
+        "imax R0,  R1"
+        "mov  R1,  {screenBottom}"
+        "isub R1,  R0"
+        "cif  R1"
+        "out  GPU_DrawingScaleY, R1"
+
+        "mov  R1,  {textureFullBottom}"
+        "out  GPU_RegionMinY, R1"
+        "out  GPU_RegionMaxY, R1"
+        "out  GPU_RegionHotspotY, R1"
+
+        "out  GPU_DrawingPointY, R0"
+        "out  GPU_Command, GPUCommand_DrawRegionZoomed"
+
+        "_bottomTextureSkip:"
+
+        "jmp _wall_while_loop_iterators"
+
+
+        // Go to next full clipping
+        "_wall_while_loop_iterators_add:"
+
+        "iadd R13, 2"
+
+        "jmp _wall_while_loop_iterators"
+
+
+        "_bottom_offsecreen:"
+
+        //Select floor settings
+        "in   R0,  GPU_SelectedTexture"
+        "out  GPU_SelectedTexture, -1"
+        "out  GPU_SelectedRegion, 256"
+        "mov  R2,  {floorColor}"
+        "out  GPU_MultiplyColor, R2"
+
+        //Get floor height
+        "fsub R1,  R3"
+        "ceil R1"
+        "out  GPU_DrawingScaleY, R1"
+
+        //Draw floor
+        "isub R12,  1"
+        "out  GPU_DrawingPointY, R12"
+        "out  GPU_Command, GPUCommand_DrawRegionZoomed"
+
+        //Reset settings
+        "out  GPU_MultiplyColor, 0xFFFFFFFF"
+        "mov  R0,  {textureNUM}"
+        "out  GPU_SelectedTexture, R0"
+        "out  GPU_SelectedRegion, 0"
+
+        "jmp  _offscreen_end"
+
+        "_top_offscreen:"
+
+        //Select ceiling settings
+        "in   R0,  GPU_SelectedTexture"
+        "out  GPU_SelectedTexture, -1"
+        "out  GPU_SelectedRegion, 256"
+        "mov  R2,  {ceilingColor}"
+        "out  GPU_MultiplyColor, R2"
+
+        //Get ceiling height
+        "mov  R1,  [R13]"
+        "cif  R1"
+        "fsub R1,  R3"
+        "ceil R1"
+        "out  GPU_DrawingScaleY, R1"
+
+        //Draw ceiling
+        "isub R12,  1"
+        "out  GPU_DrawingPointY, R12"
+        "out  GPU_Command, GPUCommand_DrawRegionZoomed"
+
+        //Reset settings
+        "out  GPU_MultiplyColor, 0xFFFFFFFF"
+        "mov  R0,  {textureNUM}"
+        "out  GPU_SelectedTexture, R0"
+        "out  GPU_SelectedRegion, 0"
+
+        // Go to next full clipping
+        "_offscreen_end:"
+        "iadd R13, 1"
+
+
+
+        "_wall_while_loop_iterators:"
+
+        // While iterators
+        "mov  R1,  {topStep}"
+        "fadd R10, R1"
+
+        "mov  R1,  {bottomStep}"
+        "fadd R9,  R1"
+
+        "mov  R1,  {textureScaleStep}"
+        "fadd R8,  R1"
+
+        "isub R7,  1"
+
+        "mov  R1,  {inverseXstep}"
+        "fadd R5,  R1"
+
+        "mov  R1,  {texOverXstep}"
+        "fadd R4,  R1"
+
+        "iadd R11, 1"
+
+        //Check loop condition
+        "jt   R7,  _wall_while_loop_start"
+
+        "_wall_while_loop_end:"
+    }
+
+    set_multiply_color(color_white);
+
+    return;
+}
+
+void drawSegment(FrameBuffer* clipping, Segment* seg, Player* pov)
+{
+    float povX = pov->xPos;
+    float povY = pov->yPos;
+
+    data segStartX;
+    data segEndX;
+
+    data segStartY;
+    data segEndY;
+
+    float segDeltaX;
+    float segDeltaY;
+
+    bool backFace = false;
+
+    if(!onRightSideSeg(seg, povX, povY)) //Backface culling
+    {
+        if(seg->isPortal)
+        {
+            segEndX.fl = pov->dirCos * (seg->xPos - povX)
+                        + pov->dirSin * (seg->yPos - povY);
+
+            segDeltaX  = pov->dirCos * seg->dx
+                       + pov->dirSin * seg->dy;
+
+            segStartX.fl   = segEndX.fl + segDeltaX;
+
+            if((segStartX.in & segEndX.in) < 0) //Behind culling
+            {
+                return;
+            }
+
+
+            segEndY.fl = pov->dirCos * (seg->yPos - povY)
+                       - pov->dirSin * (seg->xPos - povX);
+
+            segDeltaY  = pov->dirCos * seg->dy
+                       - pov->dirSin * seg->dx;
+
+            segStartY.fl = segEndY.fl + segDeltaY;
+
+            backFace = true;
+        }
+        else
+        {
+            return;
+        }
+    }
+    else
+    {
+        segStartX.fl = pov->dirCos * (seg->xPos - povX)
+                     + pov->dirSin * (seg->yPos - povY);
+
+        segDeltaX    = pov->dirCos * seg->dx
+                     + pov->dirSin * seg->dy;
+
+        segEndX.fl   = segStartX.fl + segDeltaX;
+
+        if((segStartX.in & segEndX.in) < 0) //Behind culling
+        {
+            return;
+        }
+
+
+        segStartY.fl = pov->dirCos * (seg->yPos - povY)
+                     - pov->dirSin * (seg->xPos - povX);
+
+        segDeltaY    = pov->dirCos * seg->dy
+                     - pov->dirSin * seg->dx;
+
+        segEndY.fl   = segStartY.fl + segDeltaY;
+    }
+
+    data temp;
+    temp.in = segStartX.in | 0x80000000;
+    if(segStartY.fl < temp.fl) //Start point culling
+    {
+        return;
+    }
+
+    temp.in = segEndX.in & 0x7FFFFFFF;
+    if(segEndY.fl > temp.fl) //End point culling
+    {
+        return;
+    }
+
+    float drawStartX;
+    float drawStartY;
+    float drawEndX;
+    float drawEndY;
+
+    float textureXstart;
+    float textureXend;
+
+    if(segStartY.fl > segStartX.fl) //Start Value adjustment needed
+    {
+        drawStartY    = (segStartX.fl * segDeltaY - segStartY.fl * segDeltaX)
+                      / (segDeltaY - segDeltaX);
+        drawStartX    = drawStartY;
+        textureXstart = seg->xOffset + sqrt(
+                        (segStartX.fl - drawStartX)*(segStartX.fl - drawStartX)
+                      + (segStartY.fl - drawStartY)*(segStartY.fl - drawStartY));
+    }
+    else
+    {
+        drawStartX    = segStartX.fl;
+        drawStartY    = segStartY.fl;
+        textureXstart = seg->xOffset;
+    }
+
+
+    if(segEndY.fl < segEndX.fl * -1.0) //End value adjustment needed
+    {
+        drawEndY    = ((segStartY.fl * segDeltaX) - (segStartX.fl * segDeltaY))
+                    / (segDeltaX + segDeltaY);
+        drawEndX    = -1.0 * drawEndY;
+        textureXend = (seg->length - sqrt(
+                      (segEndX.fl - drawEndX)*(segEndX.fl - drawEndX)
+                    + (segEndY.fl - drawEndY)*(segEndY.fl - drawEndY)))
+                    + seg->xOffset;
+    }
+    else
+    {
+        drawEndX    = segEndX.fl;
+        drawEndY    = segEndY.fl;
+        textureXend = seg->xOffset + seg->length;
+    }
+    WallDrawData drawData;
+
+    if(backFace == true)
+    {
+        drawData.xStart         = drawStartX;
+        drawData.xEnd           = drawEndX;
+        drawData.yStart         = drawStartY;
+        drawData.yEnd           = drawEndY;
+        drawData.textureStart   = textureXstart;
+        drawData.textureEnd     = textureXend;
+        drawData.zBottom        = seg->sectorRight->floorHeight;
+        drawData.zBottom        = seg->sectorLeft->floorHeight;
+        drawData.zTop           = seg->sectorLeft->floorHeight;
+        drawData.zTop           = seg->sectorLeft->ceilingHeight;
+        drawData.zPos           = pov->zPos;
+        drawData.textureWidth   = seg->bottom->width;
+        drawData.textureHeight  = seg->bottom->height;
+        drawData.yOffset        = seg->yOffset;
+        drawData.clipping       = clipping;
+        drawData.floorColor     = seg->sectorLeft->floorColor;
+        drawData.ceilingColor   = seg->sectorLeft->ceilingColor;
+
+        drawPortalClip(&drawData);
+    }
+    else if(seg->isPortal == false)
+    {
+        drawData.xStart         = drawStartX;
+        drawData.xEnd           = drawEndX;
+        drawData.yStart         = drawStartY;
+        drawData.yEnd           = drawEndY;
+        drawData.textureStart   = textureXstart;
+        drawData.textureEnd     = textureXend;
+        drawData.zBottom        = seg->sectorRight->floorHeight;
+        drawData.zTop           = seg->sectorRight->ceilingHeight;
+        drawData.zPos           = pov->zPos;
+        drawData.textureWidth   = seg->middle->width;
+        drawData.textureHeight  = seg->middle->height;
+        drawData.yOffset        = seg->yOffset;
+        drawData.clipping       = clipping;
+        drawData.floorColor     = seg->sectorRight->floorColor;
+        drawData.ceilingColor   = seg->sectorRight->ceilingColor;
+        drawData.textureID      = seg->middle->textureID;
+
+        drawWall(&drawData);
+    }
+    else
+    {
+        float floorHeightFront   = seg->sectorRight->floorHeight;
+        float floorHeightBack    = seg->sectorLeft->floorHeight;
+        float ceilingHeightFront = seg->sectorRight->ceilingHeight;
+        float ceilingHeightBack  = seg->sectorLeft->ceilingHeight;
+
+        if(
+            floorHeightFront >= floorHeightBack &&
+            ceilingHeightFront <= ceilingHeightBack
+        )
+        {
+            drawData.xStart         = drawStartX;
+            drawData.xEnd           = drawEndX;
+            drawData.yStart         = drawStartY;
+            drawData.yEnd           = drawEndY;
+            drawData.textureStart   = textureXstart;
+            drawData.textureEnd     = textureXend;
+            drawData.zBottom        = floorHeightFront;
+            drawData.zTop           = ceilingHeightFront;
+            drawData.zPos           = pov->zPos;
+            drawData.textureWidth   = seg->bottom->width;
+            drawData.textureHeight  = seg->bottom->height;
+            drawData.yOffset        = seg->yOffset;
+            drawData.clipping       = clipping;
+            drawData.textureID      = seg->bottom->textureID;
+            drawData.floorColor     = seg->sectorRight->floorColor;
+            drawData.ceilingColor   = seg->sectorRight->ceilingColor;
+
+            drawPortalClip(&drawData);
+        }
+        else if (floorHeightFront >= floorHeightBack)
+        {
+            drawData.xStart         = drawStartX;
+            drawData.xEnd           = drawEndX;
+            drawData.yStart         = drawStartY;
+            drawData.yEnd           = drawEndY;
+            drawData.textureStart   = textureXstart;
+            drawData.textureEnd     = textureXend;
+            drawData.zBottom        = ceilingHeightBack;
+            drawData.zTop           = ceilingHeightFront;
+            drawData.zPos           = pov->zPos;
+            drawData.textureWidth   = seg->bottom->width;
+            drawData.textureHeight  = seg->bottom->height;
+            drawData.yOffset        = seg->yOffset
+                                    + ceilingHeightBack
+                                    - floorHeightFront;
+            drawData.clipping       = clipping;
+            drawData.textureID      = seg->top->textureID;
+            drawData.floorColor     = seg->sectorRight->floorColor;
+            drawData.ceilingColor   = seg->sectorRight->ceilingColor;
+
+            drawPortalTop(&drawData);
+
+            drawData.zBottom        = floorHeightFront;
+
+            drawPortalClipBottom(&drawData);
+        }
+        else if(ceilingHeightFront <= ceilingHeightBack)
+        {
+            drawData.xStart         = drawStartX;
+            drawData.xEnd           = drawEndX;
+            drawData.yStart         = drawStartY;
+            drawData.yEnd           = drawEndY;
+            drawData.textureStart   = textureXstart;
+            drawData.textureEnd     = textureXend;
+            drawData.zBottom        = floorHeightFront;
+            drawData.zTop           = floorHeightBack;
+            drawData.zPos           = pov->zPos;
+            drawData.textureWidth   = seg->bottom->width;
+            drawData.textureHeight  = seg->bottom->height;
+            drawData.yOffset        = seg->yOffset;
+            drawData.clipping       = clipping;
+            drawData.textureID      = seg->bottom->textureID;
+            drawData.floorColor     = seg->sectorRight->floorColor;
+            drawData.ceilingColor   = seg->sectorRight->ceilingColor;
+
+            drawPortalBottom(&drawData);
+
+            drawData.zTop           = ceilingHeightFront;
+
+            drawPortalClipTop(&drawData);
+        }
+        else
+        {
+            drawData.xStart         = drawStartX;
+            drawData.xEnd           = drawEndX;
+            drawData.yStart         = drawStartY;
+            drawData.yEnd           = drawEndY;
+            drawData.textureStart   = textureXstart;
+            drawData.textureEnd     = textureXend;
+            drawData.zBottom        = floorHeightFront;
+            drawData.zTop           = ceilingHeightFront;
+            drawData.zPos           = pov->zPos;
+            drawData.textureWidth   = seg->bottom->width;
+            drawData.textureHeight  = seg->bottom->height;
+            drawData.yOffset        = seg->yOffset;
+            drawData.clipping       = clipping;
+            drawData.textureID      = seg->bottom->textureID;
+            drawData.floorColor     = seg->sectorRight->floorColor;
+            drawData.ceilingColor   = seg->sectorRight->ceilingColor;
+
+            drawPortal(
+                &drawData,
+                seg->sectorLeft->floorHeight,
+                seg->sectorLeft->ceilingHeight,
+                seg->top
+            );
+        }
+    }
+
+    inputWait();
+    return;
+}
+
+
+void drawBspLeaf(FrameBuffer* clipping, BspLeaf* leaf, Player* pov)
+{
+    int      segSize = sizeof(BspLeaf);
+    Segment** segList = leaf->segList;
+    while(*segList != NULL)
+    {
+        drawSegment(clipping, *segList, pov);
+        segList += segSize;
+    }
+
+    return;
+}
+
+void bspRender(
+    FrameBuffer* clipping,
+    BspBranch* currentNode,
+    Player* pov
+)
+{
+    BspBranch* tempBranch;
+    bool  side;
+    float xPos = pov->xPos;
+    float yPos = pov->yPos;
+
+    if(currentNode->leaf != NULL)
+    {
+        drawBspLeaf(clipping, currentNode->leaf, pov);
+    }
+
+    side = onRightSideBranch(currentNode, xPos, yPos);
+
+    if(side == RIGHT)
+    {
+        tempBranch = currentNode->rightNode;
+        if(tempBranch != NULL)
+            bspRender(clipping, tempBranch, pov);
+
+        tempBranch = currentNode->leftNode;
+        if(currentNode->leftNode != NULL)
+            bspRender(clipping, tempBranch,  pov);
+    }
+    else
+    {
+        tempBranch = currentNode->leftNode;
+        if(currentNode->leftNode != NULL)
+            bspRender(clipping, tempBranch,  pov);
+
+        tempBranch = currentNode->rightNode;
+        if(tempBranch != NULL)
+            bspRender(clipping, tempBranch, pov);
+    }
+
+    return;
+}
+
+
+
+#endif
