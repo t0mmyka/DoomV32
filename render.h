@@ -49,6 +49,7 @@ bool onRightSideSeg(Segment* seg, float x, float y)
 }
 
 
+
 void drawPortalClip(WallDrawData* data)
 {
     float        xStart        = data->xStart;
@@ -548,12 +549,10 @@ void drawPortal(
     float texOverXstart = textureStart / xStart;
     float texOverXend   = textureEnd   / xEnd;
     float texOverXstep  = (texOverXend - texOverXstart) / onScreenWidth;
-    float texOverXcurrent = texOverXstart;
 
     float inverseXstart = 1.0 / xStart;
     float inverseXend   = 1.0 / xEnd;
     float inverseXstep  =  (inverseXend - inverseXstart) / onScreenWidth;
-    float inverseXcurrent = inverseXstart;
 
     float textureTrueTop          = textureHeightTop - yOffset - roomHeight;
     float textureTrueWindowTop    = textureTrueTop + topWallHeight;
@@ -3765,43 +3764,62 @@ void drawBspLeaf(FrameBuffer* clipping, BspLeaf* leaf, Player* pov)
     return;
 }
 
-void bspRender(
-    FrameBuffer* clipping,
-    BspBranch* currentNode,
-    Player* pov
-)
+
+void bspRender(int* filledFast, FrameBuffer* clipping, BspBranch* currentNode, Player* pov)
 {
     BspBranch* tempBranch;
     bool  side;
+    bool[2] sideVisability;
     float xPos = pov->xPos;
     float yPos = pov->yPos;
 
     if(currentNode->leaf != NULL)
     {
         drawBspLeaf(clipping, currentNode->leaf, pov);
+        if(memcmp(filledFast, clipping->fast, SCREENWIDTH) == 0)
+            return;
     }
 
     side = onRightSideBranch(currentNode, xPos, yPos);
+    areBranchesVisable(currentNode, pov, sideVisability);
 
     if(side == RIGHT)
     {
-        tempBranch = currentNode->rightNode;
-        if(tempBranch != NULL)
-            bspRender(clipping, tempBranch, pov);
+        if(sideVisability[1] == true)
+        {
+            tempBranch = currentNode->rightNode;
+            if(tempBranch != NULL)
+                bspRender(filledFast, clipping, tempBranch, pov);
 
-        tempBranch = currentNode->leftNode;
-        if(currentNode->leftNode != NULL)
-            bspRender(clipping, tempBranch,  pov);
+            if(memcmp(filledFast, clipping->fast, SCREENWIDTH) == 0)
+                return;
+        }
+
+        if(sideVisability[0] == true)
+        {
+            tempBranch = currentNode->leftNode;
+            if(currentNode->leftNode != NULL)
+                bspRender(filledFast, clipping, tempBranch,  pov);
+        }
     }
     else
     {
-        tempBranch = currentNode->leftNode;
-        if(currentNode->leftNode != NULL)
-            bspRender(clipping, tempBranch,  pov);
+        if(sideVisability[0] == true)
+        {
+            tempBranch = currentNode->leftNode;
+            if(currentNode->leftNode != NULL)
+                bspRender(filledFast, clipping, tempBranch,  pov);
 
-        tempBranch = currentNode->rightNode;
-        if(tempBranch != NULL)
-            bspRender(clipping, tempBranch, pov);
+            if(memcmp(filledFast, clipping->fast, SCREENWIDTH) == 0)
+                return;
+        }
+
+        if(sideVisability[1] == true)
+        {
+            tempBranch = currentNode->rightNode;
+            if(tempBranch != NULL)
+                bspRender(filledFast, clipping, tempBranch, pov);
+        }
     }
 
     return;

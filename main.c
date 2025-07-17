@@ -4,6 +4,7 @@
 #include "time.h"
 #include "misc.h"
 #include "input.h"
+
 #include "defines.h"
 #include "general.h"
 #include "bsp.h"
@@ -18,6 +19,7 @@ void main(void)
     Texture     testTexture;
     FrameBuffer drawClip;
     FrameBuffer cleanBuffer;
+    int[SCREENWIDTH] filledFastClipping;
     Sector      Room0;
     Sector      Room1;
     Segment     wall0;
@@ -61,6 +63,7 @@ void main(void)
     for(int i = 0; i < SCREENWIDTH; i++)
     {
         drawClip.fast[i] = false;
+        filledFastClipping[i] = true;
     }
     for(int i = 0; i < SCREENWIDTH*2; i += 2)
     {
@@ -249,6 +252,7 @@ void main(void)
     rootNode.HyperY     =   57.6;
     rootNode.HyperDx    =  -19.2;
     rootNode.HyperDy    =   25.6;
+    rootNode.angle      = atan2(rootNode.HyperDy, rootNode.HyperDx);
     rootNode.BranchSide = NULL;
     rootNode.rightNode  = &node0;
     rootNode.leftNode   = &node1;
@@ -259,6 +263,7 @@ void main(void)
     node0.HyperY     = NULL;
     node0.HyperDx    = NULL;
     node0.HyperDy    = NULL;
+    node0.angle      = atan2(node0.HyperDy, node0.HyperDx);
     node0.BranchSide = RIGHT;
     node0.rightNode  = NULL;
     node0.leftNode   = NULL;
@@ -269,6 +274,7 @@ void main(void)
     node1.HyperY     =   38.4;
     node1.HyperDx    =   25.6;
     node1.HyperDy    =   19.2;
+    node1.angle      = atan2(node1.HyperDy, node1.HyperDx);
     node1.BranchSide = LEFT;
     node1.rightNode  = &node2;
     node1.leftNode   = &node3;
@@ -279,6 +285,7 @@ void main(void)
     node2.HyperY     = NULL;
     node2.HyperDx    = NULL;
     node2.HyperDy    = NULL;
+    node2.angle      = atan2(node2.HyperDy, node2.HyperDx);
     node2.BranchSide = RIGHT;
     node2.rightNode  = NULL;
     node2.leftNode   = NULL;
@@ -289,6 +296,7 @@ void main(void)
     node3.HyperY     =   64.0;
     node3.HyperDx    =   19.2;
     node3.HyperDy    =  -25.6;
+    node3.angle      = atan2(node3.HyperDy, node3.HyperDx);
     node3.BranchSide = LEFT;
     node3.rightNode  = &node4;
     node3.leftNode   = &node5;
@@ -299,6 +307,7 @@ void main(void)
     node4.HyperY     = NULL;
     node4.HyperDx    = NULL;
     node4.HyperDy    = NULL;
+    node4.angle      = atan2(node4.HyperDy, node4.HyperDx);
     node4.BranchSide = RIGHT;
     node4.rightNode  = NULL;
     node4.leftNode   = NULL;
@@ -309,6 +318,7 @@ void main(void)
     node5.HyperY     = NULL;
     node5.HyperDx    = NULL;
     node5.HyperDy    = NULL;
+    node5.angle      = atan2(node5.HyperDy, node5.HyperDx);
     node5.BranchSide = LEFT;
     node5.rightNode  = NULL;
     node5.leftNode   = NULL;
@@ -349,7 +359,7 @@ void main(void)
         Room1.floorHeight = 14.0 + 14.0*sin((float)TIME / 120.0);
         Room1.ceilingHeight = 16.0 + 14.0*sin((float)TIME / 120.0);
 
-        bspRender(&drawClip, &rootNode, &user);
+        bspRender(filledFastClipping, &drawClip, &rootNode, &user);
 
         drawClip = cleanBuffer;
 

@@ -49,6 +49,7 @@ struct BspBranch
     float      HyperY;
     float      HyperDy;
     float      HyperDx;
+    float      angle;
     bool       BranchSide;
     BspBranch* parentNode;
     BspBranch* rightNode;
@@ -73,6 +74,51 @@ bool onRightSideBranch(BspBranch* branch, float x, float y)
     else
     {
         return 0;
+    }
+}
+
+void areBranchesVisable(BspBranch* branch, Player* pov, bool* truthValues)
+{
+    float relativeAngle = branch->angle - pov->direction;
+
+    if(cos(2.0 * relativeAngle) >= 0) //Parallel ish
+    {
+        truthValues[0] = true;
+        truthValues[1] = true;
+        return;
+    }
+    else //Perpendicular ish
+    {
+        if(sin(relativeAngle) >= 0) //Left facing
+        {
+            if(onRightSideBranch(branch, pov->xPos, pov->yPos) == RIGHT)
+            {
+                truthValues[0] = false;
+                truthValues[1] = true;
+                return;
+            }
+            else
+            {
+                truthValues[0] = true;
+                truthValues[1] = true;
+                return;
+            }
+        }
+        else //Right facing
+        {
+            if(onRightSideBranch(branch, pov->xPos, pov->yPos) == RIGHT)
+            {
+                truthValues[0] = true;
+                truthValues[1] = true;
+                return;
+            }
+            else
+            {
+                truthValues[0] = true;
+                truthValues[1] = false;
+                return;
+            }
+        }
     }
 }
 
