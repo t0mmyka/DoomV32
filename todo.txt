@@ -1,0 +1,27 @@
+1. Create skybox wall rendering function (add isSkybox to segment struct)
+
+2. Create visual map editor functionality
+	OPTIONS:
+	a) Make the interface from scratch (learn low level graphics)
+	b) Use prexisting gui library to create editor (fast and customizable)
+	c) Use prexisting editor and convert/export using a script (fast and new)
+
+3. Add transparent wall rendering
+	Copy normal wall renderer but change the clipping updates
+
+4. Create billboard rendering
+	OPTIONS:
+	a) Rewrite bsp rendering to pre pass and update the clipping first then
+	use painter's algorithm to render billboards then render the segments
+		May destroy performance, and takes a lot of work
+	b) Render billboards column by column sorted by leaf
+		Will have poor performance, and need to ensure render order is correct
+
+5. Add map collision detection
+	OPTIONS
+	a) Recreate the block map
+		true to the original, and bad in every way
+	b) Use bsp to do collision checks
+		true ish to the original, but better in most ways
+		b1) Do sweaping line checks for objects (slow)
+		b2) Use Minkowski addition for each unique object size (fast, needs prepocessing)
