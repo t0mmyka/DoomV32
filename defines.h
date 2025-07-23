@@ -9,11 +9,11 @@
 #define RIGHT         true
 #define LEFT          false
 
-#define TAU     0x40c90fdb
-#define PI3o2   0x4096cbe4
-#define PIo2    0x3fc90fdb
-#define PIo4    0x3f490fdb
-#define PI3o4   0x4016cbe4
+#define TAU     6.283185482025146484375
+#define PI3o2   4.7123889923095703125
+#define PIo2    1.57079637050628662109375
+#define PI3o4   2.35619449615478515625
+#define PIo4    0.785398185253143310546875
 
 void func()
 {

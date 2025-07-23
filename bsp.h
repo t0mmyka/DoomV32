@@ -12,6 +12,12 @@ struct Texture
 
 };
 
+struct SkyBox
+{
+    Texture* texture;
+    float    rotation;
+};
+
 struct Sector
 {
     float floorHeight;
@@ -29,6 +35,7 @@ struct Segment
     float    dy;
     float    length;
     bool     isPortal;
+    bool     isSkyBox;
     Sector*  sectorRight;
     Sector*  sectorLeft;
     Texture* bottom;

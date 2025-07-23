@@ -17,11 +17,14 @@ void main(void)
     Player      user;
     Texture     wallTexture;
     Texture     testTexture;
+    Texture     skyTexture;
+    SkyBox      plainSky;
     FrameBuffer drawClip;
     FrameBuffer cleanBuffer;
     int[SCREENWIDTH] filledFastClipping;
     Sector      Room0;
     Sector      Room1;
+    Sector      Room2;
     Segment     wall0;
     Segment     wall1;
     Segment     wall2;
@@ -33,6 +36,8 @@ void main(void)
     Segment     wall8;
     Segment     wall9;
     Segment     wall10;
+    Segment     testwall1;
+    Segment     testwall2;
     BspLeaf     leaf0;
     BspLeaf     leaf1;
     BspLeaf     leaf2;
@@ -60,6 +65,13 @@ void main(void)
     testTexture.width  = 32;
     testTexture.height = 32;
 
+    skyTexture.textureID = 3;
+    skyTexture.width  = 400;
+    skyTexture.height = 100;
+
+    plainSky.texture = &skyTexture;
+    plainSky.rotation = 0.1;
+
     for(int i = 0; i < SCREENWIDTH; i++)
     {
         drawClip.fast[i] = false;
@@ -67,8 +79,8 @@ void main(void)
     }
     for(int i = 0; i < SCREENWIDTH*2; i += 2)
     {
-        drawClip.full[i]   = SCREENHEIGHT - 1;
-        drawClip.full[i+1] = 10;
+        drawClip.full[i]   = SCREENHEIGHT;
+        drawClip.full[i+1] = 0;
     }
     cleanBuffer = drawClip;
 
@@ -82,14 +94,20 @@ void main(void)
     Room1.floorColor    = 0xFF0000FF;
     Room1.ceilingColor  = 0xFFFF0000;
 
+    Room2.floorHeight   =  4.0;
+    Room2.ceilingHeight = 28.0;
+    Room2.floorColor    = 0xFFFFFFFF;
+    Room2.ceilingColor  = 0xFFFFFFFF;
+
     wall0.xPos        =   48.0;
     wall0.yPos        =   96.0;
     wall0.dx          =   80.0;
     wall0.dy          =    0.0;
     wall0.length      = sqrt(wall0.dx * wall0.dx + wall0.dy * wall0.dy);
     wall0.isPortal    = false;
+    wall0.isSkyBox    = false;
     wall0.sectorRight = &Room0;
-    wall0.sectorLeft  = &Room1;
+    wall0.sectorLeft  = &Room2;
     wall0.bottom      = &wallTexture;
     wall0.middle      = &wallTexture;
     wall0.top         = &wallTexture;
@@ -101,9 +119,10 @@ void main(void)
     wall1.dx          =    0.0;
     wall1.dy          =  -96.0;
     wall1.length      = sqrt(wall1.dx * wall1.dx + wall1.dy * wall1.dy);
-    wall1.isPortal    = false;
+    wall1.isPortal    = true;
+    wall1.isSkyBox    = true;
     wall1.sectorRight = &Room0;
-    wall1.sectorLeft  = &Room1;
+    wall1.sectorLeft  = &Room2;
     wall1.bottom      = &wallTexture;
     wall1.middle      = &wallTexture;
     wall1.top         = &wallTexture;
@@ -116,8 +135,9 @@ void main(void)
     wall2.dy          =    0.0;
     wall2.length      = sqrt(wall2.dx * wall2.dx + wall2.dy * wall2.dy);
     wall2.isPortal    = false;
+    wall2.isSkyBox    = false;
     wall2.sectorRight = &Room0;
-    wall2.sectorLeft  = &Room1;
+    wall2.sectorLeft  = &Room2;
     wall2.bottom      = &wallTexture;
     wall2.middle      = &wallTexture;
     wall2.top         = &wallTexture;
@@ -130,6 +150,7 @@ void main(void)
     wall3.dy          =   25.6;
     wall3.length      = sqrt(wall3.dx * wall3.dx + wall3.dy * wall3.dy);
     wall3.isPortal    = true;
+    wall3.isSkyBox    = false;
     wall3.sectorRight = &Room0;
     wall3.sectorLeft  = &Room1;
     wall3.bottom      = &wallTexture;
@@ -144,8 +165,9 @@ void main(void)
     wall4.dy          =    0.0;
     wall4.length      = sqrt(wall4.dx * wall4.dx + wall4.dy * wall4.dy);
     wall4.isPortal    = false;
+    wall4.isSkyBox    = false;
     wall4.sectorRight = &Room0;
-    wall4.sectorLeft  = &Room1;
+    wall4.sectorLeft  = &Room2;
     wall4.bottom      = &wallTexture;
     wall4.middle      = &wallTexture;
     wall4.top         = &wallTexture;
@@ -158,6 +180,7 @@ void main(void)
     wall5.dy          =   19.2;
     wall5.length      = sqrt(wall5.dx * wall5.dx + wall5.dy * wall5.dy);
     wall5.isPortal    = true;
+    wall5.isSkyBox    = false;
     wall5.sectorRight = &Room0;
     wall5.sectorLeft  = &Room1;
     wall5.bottom      = &wallTexture;
@@ -172,8 +195,9 @@ void main(void)
     wall6.dy          =   96.0;
     wall6.length      = sqrt(wall6.dx * wall6.dx + wall6.dy * wall6.dy);
     wall6.isPortal    = false;
+    wall6.isSkyBox    = true;
     wall6.sectorRight = &Room0;
-    wall6.sectorLeft  = &Room1;
+    wall6.sectorLeft  = &Room2;
     wall6.bottom      = &wallTexture;
     wall6.middle      = &wallTexture;
     wall6.top         = &wallTexture;
@@ -186,8 +210,9 @@ void main(void)
     wall7.dy          =    0.0;
     wall7.length      = sqrt(wall7.dx * wall7.dx + wall7.dy * wall7.dy);
     wall7.isPortal    = false;
+    wall7.isSkyBox    = false;
     wall7.sectorRight = &Room0;
-    wall7.sectorLeft  = &Room1;
+    wall7.sectorLeft  = &Room2;
     wall7.bottom      = &wallTexture;
     wall7.middle      = &wallTexture;
     wall7.top         = &wallTexture;
@@ -200,6 +225,7 @@ void main(void)
     wall8.dy          =  -25.6;
     wall8.length      = sqrt(wall8.dx * wall8.dx + wall8.dy * wall8.dy);
     wall8.isPortal    = true;
+    wall8.isSkyBox    = false;
     wall8.sectorRight = &Room0;
     wall8.sectorLeft  = &Room1;
     wall8.bottom      = &wallTexture;
@@ -214,8 +240,9 @@ void main(void)
     wall9.dy          =    0.0;
     wall9.length      = sqrt(wall9.dx * wall9.dx + wall9.dy * wall9.dy);
     wall9.isPortal    = false;
+    wall9.isSkyBox    = false;
     wall9.sectorRight = &Room0;
-    wall9.sectorLeft  = &Room1;
+    wall9.sectorLeft  = &Room2;
     wall9.bottom      = &wallTexture;
     wall9.middle      = &wallTexture;
     wall9.top         = &wallTexture;
@@ -228,6 +255,7 @@ void main(void)
     wall10.dy          =  -19.2;
     wall10.length      = sqrt(wall10.dx * wall10.dx + wall10.dy * wall10.dy);
     wall10.isPortal    = true;
+    wall10.isSkyBox    = false;
     wall10.sectorRight = &Room0;
     wall10.sectorLeft  = &Room1;
     wall10.bottom      = &wallTexture;
@@ -235,6 +263,36 @@ void main(void)
     wall10.top         = &wallTexture;
     wall10.yOffset     =    0.0;
     wall10.xOffset     =    0.0;
+
+    testwall1.xPos        =  138.0;
+    testwall1.yPos        =   96.0;
+    testwall1.dx          =    0.0;
+    testwall1.dy          =  -96.0;
+    testwall1.length      = sqrt(wall1.dx * wall1.dx + wall1.dy * wall1.dy);
+    testwall1.isPortal    = false;
+    testwall1.isSkyBox    = false;
+    testwall1.sectorRight = &Room0;
+    testwall1.sectorLeft  = &Room2;
+    testwall1.bottom      = &wallTexture;
+    testwall1.middle      = &wallTexture;
+    testwall1.top         = &wallTexture;
+    testwall1.yOffset     =    0.0;
+    testwall1.xOffset     =    0.0;
+
+    testwall2.xPos        =  -10.0;
+    testwall2.yPos        =    0.0;
+    testwall2.dx          =    0.0;
+    testwall2.dy          =   96.0;
+    testwall2.length      = sqrt(wall1.dx * wall1.dx + wall1.dy * wall1.dy);
+    testwall2.isPortal    = false;
+    testwall2.isSkyBox    = false;
+    testwall2.sectorRight = &Room0;
+    testwall2.sectorLeft  = &Room2;
+    testwall2.bottom      = &wallTexture;
+    testwall2.middle      = &wallTexture;
+    testwall2.top         = &wallTexture;
+    testwall2.yOffset     =    0.0;
+    testwall2.xOffset     =    0.0;
 
     Segment*[5] leaf0List = {&wall3, &wall0, &wall1, &wall2, NULL};
     leaf0.segList = &(leaf0List[0]);
@@ -330,7 +388,7 @@ void main(void)
 
     while(true)
     {
-        clear_screen(color_orange);
+        drawSkyBox(&plainSky, &user);
 
         if(gamepad_button_b() > 0)
             user.direction += 0.001 * gamepad_button_b();
@@ -358,8 +416,13 @@ void main(void)
         wall3.yOffset = 1.0 + 1.0*sin((float)TIME / 15.0);
         Room1.floorHeight = 14.0 + 14.0*sin((float)TIME / 120.0);
         Room1.ceilingHeight = 16.0 + 14.0*sin((float)TIME / 120.0);
+        Room2.floorHeight = 2.0 + 5.0*sin((float)TIME / 60.0);
+        Room2.ceilingHeight = 28.0 + 5.0*sin((float)TIME / 55.0);
+        wall8.xOffset = 128.0*sin((float)TIME / 360.0);
 
         bspRender(filledFastClipping, &drawClip, &rootNode, &user);
+        drawSegment(&drawClip, &testwall1, &user);
+        drawSegment(&drawClip, &testwall2, &user);
 
         drawClip = cleanBuffer;
 
