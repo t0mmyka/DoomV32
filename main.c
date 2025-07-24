@@ -388,6 +388,7 @@ void main(void)
 
     while(true)
     {
+        clear_screen(color_black);
         drawSkyBox(&plainSky, &user);
 
         if(gamepad_button_b() > 0)
@@ -418,7 +419,7 @@ void main(void)
         Room1.ceilingHeight = 16.0 + 14.0*sin((float)TIME / 120.0);
         Room2.floorHeight = 2.0 + 5.0*sin((float)TIME / 60.0);
         Room2.ceilingHeight = 28.0 + 5.0*sin((float)TIME / 55.0);
-        wall8.xOffset = 128.0*sin((float)TIME / 360.0);
+        wall8.xOffset = 128.0 + 128.0*sin((float)TIME / 360.0);
 
         bspRender(filledFastClipping, &drawClip, &rootNode, &user);
         drawSegment(&drawClip, &testwall1, &user);
