@@ -3450,8 +3450,6 @@ void drawPortalTop(WallDrawData* data)
 
 void drawWall(WallDrawData* data)
 {
-    int[33] text;
-
     float        xStart        = data->xStart;
     float        xEnd          = data->xEnd;
     float        yStart        = data->yStart;
@@ -3481,16 +3479,16 @@ void drawWall(WallDrawData* data)
     }
 
     float topStart    =  SCREENCENTERY
-                      - (SCREENHEIGHT * (zTop    - zPos) / xStart);
+    - (SCREENHEIGHT * (zTop    - zPos) / xStart);
 
     float topEnd      = SCREENCENTERY
-                      - (SCREENHEIGHT * (zTop    - zPos) / xEnd);
+    - (SCREENHEIGHT * (zTop    - zPos) / xEnd);
 
     float bottomStart =  SCREENCENTERY
-                      - (SCREENHEIGHT * (zBottom - zPos) / xStart);
+    - (SCREENHEIGHT * (zBottom - zPos) / xStart);
 
     float bottomEnd   = SCREENCENTERY
-                      - (SCREENHEIGHT * (zBottom - zPos) / xEnd);
+    - (SCREENHEIGHT * (zBottom - zPos) / xEnd);
 
     float currentTop = topStart;
     float topStep    = (topEnd - topStart) / onScreenWidth;
@@ -3499,8 +3497,8 @@ void drawWall(WallDrawData* data)
     float bottomStep    = (bottomEnd - bottomStart) / onScreenWidth;
 
     float currentTextureScale = (bottomStart - topStart) / roomHeight;
-    float textureScaleEnd     = (bottomEnd - topEnd) / roomHeight;
-    float inverseMaxScale     = 5.0 / fmax(currentTextureScale, textureScaleEnd);
+    float inverseMaxScale = 5.0 * roomHeight
+                          / fmax(bottomStart - topStart, bottomEnd - topEnd);
 
     int mipMapLevel = max(floor(log(inverseMaxScale) / LN2), 0.0);
 
@@ -3508,31 +3506,13 @@ void drawWall(WallDrawData* data)
 
     int mipMapFactor = pow(2.0, (float)mipMapLevel);
 
-    ftoa(fmax(currentTextureScale, textureScaleEnd), text);
-    print_at(400, 340, text);
-    itoa(mipMapLevel, text, 10);
-    print_at(0, 340, text);
-    ftoa(mipMapStart, text);
-    print_at(60, 340, text);
-    itoa(mipMapFactor, text, 10);
-    print_at(120, 340, text);
-
-    textureWidth /= mipMapFactor;
+    textureWidth /= (float)mipMapFactor;
     textureStart /= (float)mipMapFactor;
     textureEnd   /= (float)mipMapFactor;
 
-    ftoa(textureWidth, text);
-    print_at(0, 320, text);
-    ftoa(textureStart, text);
-    print_at(80, 320, text);
-    ftoa(textureEnd, text);
-    print_at(160, 320, text);
-
-
     currentTextureScale *= (float)mipMapFactor;
-    textureScaleEnd *= (float)mipMapFactor;
 
-    float textureScaleStep    = (currentTextureScale - textureScaleEnd)
+    float textureScaleStep    = (bottomEnd - topEnd - bottomStart + topStart)
                               / (roomHeight * onScreenWidth);
 
     float texOverXstart = textureStart / xStart;
@@ -3543,10 +3523,12 @@ void drawWall(WallDrawData* data)
     float inverseXend   = 1.0 / xEnd;
     float inverseXstep  =  (inverseXend - inverseXstart) / onScreenWidth;
 
+
     float textureTrueTop      = textureHeight
                               - ((yOffset + roomHeight) / mipMapFactor);
     float textureTrueBottom   = textureHeight
                               - (yOffset / mipMapFactor);
+
     int*  fullClippingPointer = &(clipping->full[columnStart*2]);
     int*  fastClippingPointer = &(clipping->fast[0]);
     int   screenTop;
@@ -3555,7 +3537,6 @@ void drawWall(WallDrawData* data)
     int   screenFullBottom;
     int   textureFullTop;
     int   textureFullBottom;
-
 
     select_texture(textureNUM);
     set_drawing_scale(1.0, 1.0);
