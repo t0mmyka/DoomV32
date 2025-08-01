@@ -31,23 +31,6 @@ struct WallDrawData
     int          textureID;
 };
 
-bool onRightSideSeg(Segment* seg, float x, float y)
-{
-    float dx = x - seg->xPos;
-    float dy = y - seg->yPos;
-
-    float left  = dx * seg->dy;
-    float right = dy * seg->dx;
-    if(right < left)
-    {
-        return 1;
-    }
-    else
-    {
-        return 0;
-    }
-}
-
 int mipMapGeometric(int width, int level)
 {
     int add = width;
@@ -3544,6 +3527,9 @@ void drawWall(WallDrawData* data)
 
     asm
     {
+        //Save registers
+        SAVEREGS
+
         //Initialize registers
         "mov  R4,  {texOverXstart}"
         "mov  R5,  {inverseXstart}"
@@ -3968,9 +3954,12 @@ void drawWall(WallDrawData* data)
         "jt   R7,  _wall_while_loop_start"
 
         "_wall_while_loop_end:"
+
+        //Reset registers
+        SETREGS
     }
 
-    set_multiply_color(color_white);
+    //set_multiply_color(color_white);
 
     return;
 }

@@ -13,8 +13,15 @@
 
 void main(void)
 {
+
+    float   fTest;
+    int     iTest;
+    void*   pTest;
+
     int         TIME;
     Player      user;
+    Ray         lazer;
+    RayHit*     lazerDot;
     Texture     wallTexture;
     Texture     testTexture;
     Texture     skyTexture;
@@ -38,6 +45,10 @@ void main(void)
     Segment     wall10;
     Segment     testwall1;
     Segment     testwall2;
+    Segment*[5] leaf0List = {&wall3, &wall0, &wall1, &wall2, NULL};
+    Segment*[3] leaf1List = {&wall5, &wall4, NULL};
+    Segment*[4] leaf2List = {&wall8, &wall6, &wall7, NULL};
+    Segment*[3] leaf3List = {&wall10, &wall9, NULL};
     BspLeaf     leaf0;
     BspLeaf     leaf1;
     BspLeaf     leaf2;
@@ -49,6 +60,10 @@ void main(void)
     BspBranch   node3;
     BspBranch   node4;
     BspBranch   node5;
+    float speedX;
+    float speedY;
+
+    int[732] text;
 
     user.xPos =     50.00;
     user.yPos =     30.00;
@@ -294,16 +309,12 @@ void main(void)
     testwall2.yOffset     =    0.0;
     testwall2.xOffset     =    0.0;
 
-    Segment*[5] leaf0List = {&wall3, &wall0, &wall1, &wall2, NULL};
     leaf0.segList = &(leaf0List[0]);
 
-    Segment*[3] leaf1List = {&wall5, &wall4, NULL};
     leaf1.segList = &(leaf1List[0]);
 
-    Segment*[4] leaf2List = {&wall8, &wall6, &wall7, NULL};
     leaf2.segList = &(leaf2List[0]);
 
-    Segment*[3] leaf3List = {&wall10, &wall9, NULL};
     leaf3.segList = &(leaf3List[0]);
 
     rootNode.HyperX     =   76.8;
@@ -347,7 +358,7 @@ void main(void)
     node2.BranchSide = RIGHT;
     node2.rightNode  = NULL;
     node2.leftNode   = NULL;
-    node2.parentNode = &rootNode;
+    node2.parentNode = &node1;
     node2.leaf       = &leaf1;
 
     node3.HyperX     =   32.0;
@@ -358,7 +369,7 @@ void main(void)
     node3.BranchSide = LEFT;
     node3.rightNode  = &node4;
     node3.leftNode   = &node5;
-    node3.parentNode = &rootNode;
+    node3.parentNode = &node1;
     node3.leaf       = NULL;
 
     node4.HyperX     = NULL;
@@ -369,7 +380,7 @@ void main(void)
     node4.BranchSide = RIGHT;
     node4.rightNode  = NULL;
     node4.leftNode   = NULL;
-    node4.parentNode = &rootNode;
+    node4.parentNode = &node3;
     node4.leaf       = &leaf2;
 
     node5.HyperX     = NULL;
@@ -380,11 +391,8 @@ void main(void)
     node5.BranchSide = LEFT;
     node5.rightNode  = NULL;
     node5.leftNode   = NULL;
-    node5.parentNode = &rootNode;
+    node5.parentNode = &node3;
     node5.leaf       = &leaf3;
-
-    float speedX;
-    float speedY;
 
     while(true)
     {
@@ -414,6 +422,14 @@ void main(void)
         user.xPos += user.dirCos * speedX - user.dirSin * speedY;
         user.yPos += user.dirCos * speedY + user.dirSin * speedX;
         user.zPos =  16.0 + 1.5*sin((float)TIME / 30.0);
+
+        lazer.xPos = user.xPos;
+        lazer.yPos = user.yPos;
+        lazer.zPos = user.zPos;
+        lazer.dx   = user.dirCos;
+        lazer.dy   = user.dirSin;
+        lazer.dz   = 0.0;
+
         wall3.yOffset = 1.0 + 1.0*sin((float)TIME / 15.0);
         Room1.floorHeight = 14.0 + 14.0*sin((float)TIME / 120.0);
         Room1.ceilingHeight = 16.0 + 14.0*sin((float)TIME / 120.0);
@@ -422,8 +438,19 @@ void main(void)
         wall8.xOffset = 128.0 + 128.0*sin((float)TIME / 360.0);
 
         bspRender(filledFastClipping, &drawClip, &rootNode, &user);
-        drawSegment(&drawClip, &testwall1, &user);
-        drawSegment(&drawClip, &testwall2, &user);
+        //bspRender(filledFastClipping, &drawClip, &node5, &user);
+        //drawSegment(&drawClip, &testwall1, &user);
+        //drawSegment(&drawClip, &testwall2, &user);
+
+        lazerDot = rayCastBsp(&rootNode, &lazer);
+        if(lazerDot != NULL)
+        {
+            itoa((int)lazerDot->xPos, text, 10);
+            print_at(0, 320, text);
+            itoa((int)lazerDot->yPos, text, 10);
+            print_at(100, 320, text);
+
+        }
 
         drawClip = cleanBuffer;
 

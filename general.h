@@ -19,6 +19,15 @@ struct Player
     float dirCos;
 };
 
+struct Ray
+{
+    float xPos;
+    float yPos;
+    float zPos;
+    float dx;
+    float dy;
+    float dz;
+};
 
 void inputWait()
 {
