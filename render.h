@@ -3527,9 +3527,6 @@ void drawWall(WallDrawData* data)
 
     asm
     {
-        //Save registers
-        SAVEREGS
-
         //Initialize registers
         "mov  R4,  {texOverXstart}"
         "mov  R5,  {inverseXstart}"
@@ -3955,8 +3952,6 @@ void drawWall(WallDrawData* data)
 
         "_wall_while_loop_end:"
 
-        //Reset registers
-        SETREGS
     }
 
     //set_multiply_color(color_white);
