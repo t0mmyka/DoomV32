@@ -46,5 +46,4 @@ void inputWait()
     }
 }
 
-
 #endif

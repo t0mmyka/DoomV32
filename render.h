@@ -4307,14 +4307,13 @@ void drawSegment(FrameBuffer* clipping, Segment* seg, Player* pov)
         }
     }
 
-    inputWait();
     return;
 }
 
 
 void drawBspLeaf(FrameBuffer* clipping, BspLeaf* leaf, Player* pov)
 {
-    int      segSize = sizeof(BspLeaf);
+    int      segSize = sizeof(Segment*);
     Segment** segList = leaf->segList;
     while(*segList != NULL)
     {

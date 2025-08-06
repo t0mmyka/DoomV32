@@ -29,6 +29,7 @@ struct Sector
 
 struct Segment
 {
+    int*     Name;
     float    xPos;
     float    yPos;
     float    dx;
@@ -52,6 +53,7 @@ struct BspLeaf
 
 struct BspBranch
 {
+    int*       Name;
     float      HyperX;
     float      HyperY;
     float      HyperDy;
@@ -110,6 +112,24 @@ bool onRightSideSeg(Segment* seg, float x, float y)
     }
 }
 
+bool onLeftSideSeg(Segment* seg, float x, float y)
+{
+    float dx = x - seg->xPos;
+    float dy = y - seg->yPos;
+
+    float left  = dx * seg->dy;
+    float right = dy * seg->dx;
+    if(right > left)
+    {
+        return 1;
+    }
+    else
+    {
+        return 0;
+    }
+}
+
+//NOTE: ray2 hits ray1
 float* rayIntersect(Ray* ray1, Ray* ray2)
 {
     float[2] result;
@@ -129,7 +149,7 @@ float* rayIntersect(Ray* ray1, Ray* ray2)
          + (ray2->xPos * dotB)   - (ray1->xPos * dotB);
 
 
-    if(crossA != crossB) //Result is real
+    if(crossA != crossB) //Single hit
     {
         xPos /= crossB - crossA;
 
@@ -152,15 +172,40 @@ float* rayIntersect(Ray* ray1, Ray* ray2)
 
         return &(result[0]);
     }
-    else //Result is infinite
+    else //Parallel
     {
-        return NULL;
+        if(xPos == 0.0 && yPos == 0.0) //Hit
+        {
+            if(ray2->xPos * ray1->dx < ray1->xPos * ray1->dx)
+            {
+                result[0] = ray1->xPos;
+                result[1] = ray1->yPos;
+            }
+            else if(ray2->yPos * ray1->dy < ray1->yPos * ray1->dy)
+            {
+                result[0] = ray1->xPos;
+                result[1] = ray1->yPos;
+            }
+            else
+            {
+                result[0] = ray2->xPos;
+                result[1] = ray2->yPos;
+            }
+
+            return &(result[0]);
+        }
+        else //No Hit
+        {
+            return NULL;
+        }
     }
 }
 
 
 RayHit* rayCastBsp (BspBranch* currentNode, Ray* ray)
 {
+    int[50] text;
+
     float infinity;
     float negInfinity;
     asm
@@ -171,11 +216,9 @@ RayHit* rayCastBsp (BspBranch* currentNode, Ray* ray)
         "mov  {negInfinity}, R0"
     }
 
-    int[1000] text;
-
     if(currentNode->leaf != NULL)
     {
-        int       segSize  = sizeof(BspLeaf);
+        int       segSize  = sizeof(Segment*);
         Segment** wallList = currentNode->leaf->segList;
         Segment*  currentWall;
         float*    hitPoint;
@@ -186,7 +229,7 @@ RayHit* rayCastBsp (BspBranch* currentNode, Ray* ray)
         {
             currentWall = *wallList;
 
-            if(onRightSideSeg(currentWall, ray->xPos, ray->yPos))
+            if(!onLeftSideSeg(currentWall, ray->xPos, ray->yPos))
             {
                 wallRay.xPos = currentWall->xPos;
                 wallRay.yPos = currentWall->yPos;
@@ -220,6 +263,7 @@ RayHit* rayCastBsp (BspBranch* currentNode, Ray* ray)
     }
 
     bool side = onRightSideBranch(currentNode, ray->xPos, ray->yPos);
+
     RayHit* returnHit = NULL;
     BspBranch* tempNode;
 
@@ -232,9 +276,10 @@ RayHit* rayCastBsp (BspBranch* currentNode, Ray* ray)
             returnHit = rayCastBsp(tempNode, ray);
         }
 
-        if(returnHit != NULL && tempNode != NULL)
+        tempNode = currentNode->leftNode;
+        if(returnHit == NULL && tempNode != NULL)
         {
-                returnHit = rayCastBsp(tempNode, ray);
+            returnHit = rayCastBsp(tempNode, ray);
         }
     }
     else
@@ -246,7 +291,7 @@ RayHit* rayCastBsp (BspBranch* currentNode, Ray* ray)
         }
 
         tempNode = currentNode->rightNode;
-        if(returnHit != NULL && tempNode != NULL)
+        if(returnHit == NULL && tempNode != NULL)
         {
             returnHit = rayCastBsp(tempNode, ray);
         }

@@ -60,15 +60,18 @@ void main(void)
     BspBranch   node3;
     BspBranch   node4;
     BspBranch   node5;
+    float speed = 1.1;
     float speedX;
     float speedY;
+    float lazerDx;
+    float lazerDy;
 
     int[732] text;
 
-    user.xPos =     50.00;
-    user.yPos =     30.00;
+    user.xPos =      5.00;
+    user.yPos =      5.00;
     user.zPos =     16.00;
-    user.direction = 1.4;
+    user.direction = 0.0;
     user.dirSin = sin(user.direction);
     user.dirCos = cos(user.direction);
 
@@ -114,6 +117,7 @@ void main(void)
     Room2.floorColor    = 0xFFFFFFFF;
     Room2.ceilingColor  = 0xFFFFFFFF;
 
+    wall0.Name        = "wall0";
     wall0.xPos        =   48.0;
     wall0.yPos        =   96.0;
     wall0.dx          =   80.0;
@@ -129,6 +133,7 @@ void main(void)
     wall0.yOffset     =    0.0;
     wall0.xOffset     =   48.0;
 
+    wall1.Name        = "wall1";
     wall1.xPos        =  128.0;
     wall1.yPos        =   96.0;
     wall1.dx          =    0.0;
@@ -144,6 +149,7 @@ void main(void)
     wall1.yOffset     =    0.0;
     wall1.xOffset     =    0.0;
 
+    wall2.Name        = "wall2";
     wall2.xPos        =  128.0;
     wall2.yPos        =    0.0;
     wall2.dx          =   -8.0;
@@ -159,6 +165,7 @@ void main(void)
     wall2.yOffset     =    0.0;
     wall2.xOffset     =    0.0;
 
+    wall3.Name        = "wall3";
     wall3.xPos        =   76.8;
     wall3.yPos        =   57.6;
     wall3.dx          =  -19.2;
@@ -174,6 +181,7 @@ void main(void)
     wall3.yOffset     =    0.0;
     wall3.xOffset     =    0.0;
 
+    wall4.Name        = "wall4";
     wall4.xPos        =  120.0;
     wall4.yPos        =    0.0;
     wall4.dx          = -120.0;
@@ -189,6 +197,7 @@ void main(void)
     wall4.yOffset     =    0.0;
     wall4.xOffset     =    8.0;
 
+    wall5.Name        = "wall5";
     wall5.xPos        =   51.2;
     wall5.yPos        =   38.4;
     wall5.dx          =   25.6;
@@ -204,6 +213,7 @@ void main(void)
     wall5.yOffset     =    0.0;
     wall5.xOffset     =    0.0;
 
+    wall6.Name        = "wall6";
     wall6.xPos        =    0.0;
     wall6.yPos        =    0.0;
     wall6.dx          =    0.0;
@@ -219,6 +229,7 @@ void main(void)
     wall6.yOffset     =    0.0;
     wall6.xOffset     =    0.0;
 
+    wall7.Name        = "wall7";
     wall7.xPos        =    0.0;
     wall7.yPos        =   96.0;
     wall7.dx          =    8.0;
@@ -234,6 +245,7 @@ void main(void)
     wall7.yOffset     =    0.0;
     wall7.xOffset     =    0.0;
 
+    wall8.Name        = "wall8";
     wall8.xPos        =   32.0;
     wall8.yPos        =   64.0;
     wall8.dx          =   19.2;
@@ -249,6 +261,7 @@ void main(void)
     wall8.yOffset     =    0.0;
     wall8.xOffset     =    0.0;
 
+    wall9.Name        = "wall9";
     wall9.xPos        =    8.0;
     wall9.yPos        =   96.0;
     wall9.dx          =   40.0;
@@ -264,6 +277,7 @@ void main(void)
     wall9.yOffset     =    0.0;
     wall9.xOffset     =    8.0;
 
+    wall10.Name        = "wall10";
     wall10.xPos        =   57.6;
     wall10.yPos        =   83.2;
     wall10.dx          =  -25.6;
@@ -279,6 +293,7 @@ void main(void)
     wall10.yOffset     =    0.0;
     wall10.xOffset     =    0.0;
 
+    testwall1.Name        = "testwall1";
     testwall1.xPos        =  138.0;
     testwall1.yPos        =   96.0;
     testwall1.dx          =    0.0;
@@ -294,6 +309,7 @@ void main(void)
     testwall1.yOffset     =    0.0;
     testwall1.xOffset     =    0.0;
 
+    testwall2.Name        = "testwall2";
     testwall2.xPos        =  -10.0;
     testwall2.yPos        =    0.0;
     testwall2.dx          =    0.0;
@@ -317,6 +333,7 @@ void main(void)
 
     leaf3.segList = &(leaf3List[0]);
 
+    rootNode.Name       = "root";
     rootNode.HyperX     =   76.8;
     rootNode.HyperY     =   57.6;
     rootNode.HyperDx    =  -19.2;
@@ -328,6 +345,7 @@ void main(void)
     rootNode.parentNode = NULL;
     rootNode.leaf       = NULL;
 
+    node0.Name       = "node0";
     node0.HyperX     = NULL;
     node0.HyperY     = NULL;
     node0.HyperDx    = NULL;
@@ -339,6 +357,7 @@ void main(void)
     node0.parentNode = &rootNode;
     node0.leaf       = &leaf0;
 
+    node1.Name       = "node1";
     node1.HyperX     =   51.2;
     node1.HyperY     =   38.4;
     node1.HyperDx    =   25.6;
@@ -350,6 +369,7 @@ void main(void)
     node1.parentNode = &rootNode;
     node1.leaf       = NULL;
 
+    node2.Name       = "node2";
     node2.HyperX     = NULL;
     node2.HyperY     = NULL;
     node2.HyperDx    = NULL;
@@ -361,6 +381,7 @@ void main(void)
     node2.parentNode = &node1;
     node2.leaf       = &leaf1;
 
+    node3.Name       = "node3";
     node3.HyperX     =   32.0;
     node3.HyperY     =   64.0;
     node3.HyperDx    =   19.2;
@@ -372,6 +393,7 @@ void main(void)
     node3.parentNode = &node1;
     node3.leaf       = NULL;
 
+    node4.Name       = "node4";
     node4.HyperX     = NULL;
     node4.HyperY     = NULL;
     node4.HyperDx    = NULL;
@@ -383,6 +405,7 @@ void main(void)
     node4.parentNode = &node3;
     node4.leaf       = &leaf2;
 
+    node5.Name       = "node5";
     node5.HyperX     = NULL;
     node5.HyperY     = NULL;
     node5.HyperDx    = NULL;
@@ -406,29 +429,126 @@ void main(void)
 
         user.dirCos = cos(user.direction);
         user.dirSin = sin(user.direction);
-
         speedX = 0.0;
         speedY = 0.0;
 
         if(gamepad_left() > 0)
-            speedY += 0.005 * gamepad_left();
+        {
+            speedX -= speed * user.dirSin;
+            speedY += speed * user.dirCos;
+        }
         if(gamepad_right() > 0)
-            speedY -= 0.005 * gamepad_right();
+        {
+            speedX += speed * user.dirSin;
+            speedY -= speed * user.dirCos;
+        }
         if(gamepad_up() > 0)
-            speedX += 0.005 * gamepad_up();
+        {
+            speedX += speed * user.dirCos;
+            speedY += speed * user.dirSin;
+        }
         if(gamepad_down() > 0)
-            speedX -= 0.005 * gamepad_down();
-
-        user.xPos += user.dirCos * speedX - user.dirSin * speedY;
-        user.yPos += user.dirCos * speedY + user.dirSin * speedX;
-        user.zPos =  16.0 + 1.5*sin((float)TIME / 30.0);
+        {
+            speedX -= speed * user.dirCos;
+            speedY -= speed * user.dirSin;
+        }
 
         lazer.xPos = user.xPos;
         lazer.yPos = user.yPos;
         lazer.zPos = user.zPos;
-        lazer.dx   = user.dirCos;
-        lazer.dy   = user.dirSin;
-        lazer.dz   = 0.0;
+
+        if(speedX != 0.0 || speedY != 0.0)
+        //if(false)
+        {
+            lazer.dx   = speedX;
+            lazer.dy   = speedY;
+            lazer.dz   = 0.0;
+
+            lazerDot = rayCastBsp(&rootNode, &lazer);
+
+            lazerDx = lazerDot->xPos - user.xPos;
+            lazerDy = lazerDot->yPos - user.yPos;
+
+            ftoa(speedX, text);
+            print_at(420, 320, text);
+            ftoa(speedY, text);
+            print_at(520, 320, text);
+
+            if(lazerDot != NULL)
+            {
+                //Segment* tempWall = lazerDot->wall;
+                //ftoa(tempWall->xPos, text);
+                //print_at(320, 320, text);
+
+                if(speedX > 0.0)
+                {
+                    clear_screen(color_red);
+                    if(lazerDx  * 0.9 - 0.1 < speedX)
+                    {
+                        clear_screen(0x77FFFFFF);
+                        speedX = lazerDx * 0.9 - 0.1;
+                    }
+                }
+                else if(speedX < 0.0)
+                {
+                    clear_screen(color_green);
+                    if(lazerDx * 0.9 + 0.1> speedX)
+                    {
+                        clear_screen(0x77FFFFFF);
+                        speedX = lazerDx * 0.9 + 0.1;
+                    }
+                }
+
+                if(speedY > 0.0)
+                {
+                    clear_screen(color_blue);
+                    if(lazerDy * 0.9 - 0.1< speedY)
+                    {
+                        clear_screen(0x77FFFFFF);
+                        speedY = lazerDy * 0.9 - 0.1;
+                    }
+                }
+                else if(speedY < 0.0)
+                {
+                    clear_screen(color_gray);
+                    if(lazerDy * 0.9 + 0.1 > speedY)
+                    {
+                        clear_screen(0x77FFFFFF);
+                        speedY = lazerDy * 0.9 + 0.1;
+                    }
+                }
+            }
+        }
+        else
+        {
+            lazer.dx   = user.dirCos;
+            lazer.dy   = user.dirSin;
+            lazer.dz   = 0.0;
+            lazerDot = rayCastBsp(&rootNode, &lazer);
+        }
+
+        ftoa(user.xPos, text);
+        print_at(0, 340, text);
+        ftoa(user.yPos, text);
+        print_at(100, 340, text);
+
+        if(lazerDot != NULL)
+        {
+            ftoa(lazerDot->xPos, text);
+            print_at(0, 320, text);
+            ftoa(lazerDot->yPos, text);
+            print_at(100, 320, text);
+            print_at(320, 320, lazerDot->wall->Name);
+        }
+
+        ftoa(speedX, text);
+        print_at(420, 340, text);
+        ftoa(speedY, text);
+        print_at(520, 340, text);
+
+        user.xPos += speedX;
+        user.yPos += speedY;
+        user.zPos =  16.0 + 1.5*sin((float)TIME / 30.0);
 
         wall3.yOffset = 1.0 + 1.0*sin((float)TIME / 15.0);
         Room1.floorHeight = 14.0 + 14.0*sin((float)TIME / 120.0);
@@ -442,23 +562,18 @@ void main(void)
         //drawSegment(&drawClip, &testwall1, &user);
         //drawSegment(&drawClip, &testwall2, &user);
 
-        lazerDot = rayCastBsp(&rootNode, &lazer);
-        if(lazerDot != NULL)
-        {
-            itoa((int)lazerDot->xPos, text, 10);
-            print_at(0, 320, text);
-            itoa((int)lazerDot->yPos, text, 10);
-            print_at(100, 320, text);
-
-        }
-
         drawClip = cleanBuffer;
 
+        ftoa(user.xPos, text);
+        print_at(0, 300, text);
+        ftoa(user.yPos, text);
+        print_at(100, 300, text);
+
+        inputWait();
         if(gamepad_button_l() < 0 || gamepad_button_r() == 1)
         {
             TIME++;
         }
-        inputWait();
         end_frame();
     }
 
