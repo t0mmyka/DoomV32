@@ -468,12 +468,17 @@ void playerMovement(Player* person, BspBranch* collisionMap)
 
         bool hit = false;
 
+        float wallAngle = atan2(intersect->wall->dy, intersect->wall->dx);
+        float rayAngle  = atan2(person->ySpeed, person->xSpeed);
+
         if(intersect != NULL)
         {
             float hitDistance = dist(
                 intersect->xPos - person->xPos,
                 intersect->yPos - person->yPos
             );
+
+            hitDistance -= MOVEPADDING / sin(rayAngle - wallAngle);
 
             print_at(240, 320, "D:");
             ftoa(hitDistance, text);
@@ -493,10 +498,6 @@ void playerMovement(Player* person, BspBranch* collisionMap)
             float newPosX = intersect->xPos;
             float newPosY = intersect->yPos;
 
-            Segment* wall = intersect->wall;
-
-            float wallAngle = atan2(wall->dy, wall->dx);
-            float rayAngle  = atan2(person->ySpeed, person->xSpeed);
 
             newPosX -= (cos(rayAngle) / sin(rayAngle - wallAngle)) * MOVEPADDING;
             newPosY -= (sin(rayAngle) / sin(rayAngle - wallAngle)) * MOVEPADDING;
