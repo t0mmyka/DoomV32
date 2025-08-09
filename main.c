@@ -20,8 +20,6 @@ void main(void)
 
     int         TIME;
     Player      user;
-    Ray         lazer;
-    RayHit*     lazerDot;
     Texture     wallTexture;
     Texture     testTexture;
     Texture     skyTexture;
@@ -63,15 +61,16 @@ void main(void)
     float speed = 1.1;
     float speedX;
     float speedY;
-    float lazerDx;
-    float lazerDy;
 
     int[732] text;
 
     user.xPos =      5.00;
     user.yPos =      5.00;
     user.zPos =     16.00;
-    user.direction = 0.0;
+    user.xSpeed =    0.00;
+    user.ySpeed =    0.00;
+    user.zSpeed =    0.00;
+    user.direction = 0.00;
     user.dirSin = sin(user.direction);
     user.dirCos = cos(user.direction);
 
@@ -422,132 +421,15 @@ void main(void)
         clear_screen(color_black);
         drawSkyBox(&plainSky, &user);
 
-        if(gamepad_button_b() > 0)
-            user.direction += 0.001 * gamepad_button_b();
-        if(gamepad_button_a() > 0)
-            user.direction -= 0.001 * gamepad_button_a();
-
-        user.dirCos = cos(user.direction);
-        user.dirSin = sin(user.direction);
-        speedX = 0.0;
-        speedY = 0.0;
-
-        if(gamepad_left() > 0)
-        {
-            speedX -= speed * user.dirSin;
-            speedY += speed * user.dirCos;
-        }
-        if(gamepad_right() > 0)
-        {
-            speedX += speed * user.dirSin;
-            speedY -= speed * user.dirCos;
-        }
-        if(gamepad_up() > 0)
-        {
-            speedX += speed * user.dirCos;
-            speedY += speed * user.dirSin;
-        }
-        if(gamepad_down() > 0)
-        {
-            speedX -= speed * user.dirCos;
-            speedY -= speed * user.dirSin;
-        }
-
-        lazer.xPos = user.xPos;
-        lazer.yPos = user.yPos;
-        lazer.zPos = user.zPos;
-
-        if(speedX != 0.0 || speedY != 0.0)
-        //if(false)
-        {
-            lazer.dx   = speedX;
-            lazer.dy   = speedY;
-            lazer.dz   = 0.0;
-
-            lazerDot = rayCastBsp(&rootNode, &lazer);
-
-            lazerDx = lazerDot->xPos - user.xPos;
-            lazerDy = lazerDot->yPos - user.yPos;
-
-            ftoa(speedX, text);
-            print_at(420, 320, text);
-            ftoa(speedY, text);
-            print_at(520, 320, text);
-
-            if(lazerDot != NULL)
-            {
-                //Segment* tempWall = lazerDot->wall;
-                //ftoa(tempWall->xPos, text);
-                //print_at(320, 320, text);
-
-                if(speedX > 0.0)
-                {
-                    clear_screen(color_red);
-                    if(lazerDx  * 0.9 - 0.1 < speedX)
-                    {
-                        clear_screen(0x77FFFFFF);
-                        speedX = lazerDx * 0.9 - 0.1;
-                    }
-                }
-                else if(speedX < 0.0)
-                {
-                    clear_screen(color_green);
-                    if(lazerDx * 0.9 + 0.1> speedX)
-                    {
-                        clear_screen(0x77FFFFFF);
-                        speedX = lazerDx * 0.9 + 0.1;
-                    }
-                }
-
-                if(speedY > 0.0)
-                {
-                    clear_screen(color_blue);
-                    if(lazerDy * 0.9 - 0.1< speedY)
-                    {
-                        clear_screen(0x77FFFFFF);
-                        speedY = lazerDy * 0.9 - 0.1;
-                    }
-                }
-                else if(speedY < 0.0)
-                {
-                    clear_screen(color_gray);
-                    if(lazerDy * 0.9 + 0.1 > speedY)
-                    {
-                        clear_screen(0x77FFFFFF);
-                        speedY = lazerDy * 0.9 + 0.1;
-                    }
-                }
-            }
-        }
-        else
-        {
-            lazer.dx   = user.dirCos;
-            lazer.dy   = user.dirSin;
-            lazer.dz   = 0.0;
-            lazerDot = rayCastBsp(&rootNode, &lazer);
-        }
-
+        print_at(0,  320, "X:");
         ftoa(user.xPos, text);
-        print_at(0, 340, text);
+        print_at(20, 320, text);
         ftoa(user.yPos, text);
-        print_at(100, 340, text);
+        print_at(0,  340, "Y:");
+        print_at(20, 340, text);
 
-        if(lazerDot != NULL)
-        {
-            ftoa(lazerDot->xPos, text);
-            print_at(0, 320, text);
-            ftoa(lazerDot->yPos, text);
-            print_at(100, 320, text);
-            print_at(320, 320, lazerDot->wall->Name);
-        }
+        playerMovement(&user, &rootNode);
 
-        ftoa(speedX, text);
-        print_at(420, 340, text);
-        ftoa(speedY, text);
-        print_at(520, 340, text);
-
-        user.xPos += speedX;
-        user.yPos += speedY;
         user.zPos =  16.0 + 1.5*sin((float)TIME / 30.0);
 
         wall3.yOffset = 1.0 + 1.0*sin((float)TIME / 15.0);
@@ -564,16 +446,13 @@ void main(void)
 
         drawClip = cleanBuffer;
 
-        ftoa(user.xPos, text);
-        print_at(0, 300, text);
-        ftoa(user.yPos, text);
-        print_at(100, 300, text);
-
         inputWait();
         if(gamepad_button_l() < 0 || gamepad_button_r() == 1)
         {
             TIME++;
         }
+
+        //asm{"call _debugregs"}
         end_frame();
     }
 

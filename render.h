@@ -3451,6 +3451,10 @@ void drawWall(WallDrawData* data)
     int          ceilingColor  = data->ceilingColor;
     int          textureNUM    = data->textureID;
 
+    if(xStart == 0.0 || yStart == 0.0 || xEnd == 0.0 || yEnd == 0.0)
+    {
+        return;
+    }
 
     int   columnStart = min(floor((yStart/xStart - 1.0) * -320.0), 639);
     int   columnEnd   = min(floor((yEnd/xEnd - 1.0) * -320.0), 639);
@@ -3483,7 +3487,8 @@ void drawWall(WallDrawData* data)
     float inverseMaxScale = 5.0 * roomHeight
                           / fmax(bottomStart - topStart, bottomEnd - topEnd);
 
-    int mipMapLevel = max(floor(log(inverseMaxScale) / LN2), 0.0);
+    //int mipMapLevel = max(floor(log(inverseMaxScale) / LN2), 0.0);
+    int mipMapLevel = 0.0;
 
     float mipMapStart = mipMapGeometric(textureWidth, mipMapLevel);
 

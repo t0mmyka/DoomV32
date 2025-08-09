@@ -9,6 +9,13 @@
 #define SCREENHEIGHT  320
 #define SCREENCENTERY 160.0
 
+#define MOVEPADDING 0.05
+#define MOVERATIO   0.5
+
+#define PACCELERAION 0.10
+#define PMAXSPEED    0.75
+#define PFRICTION    0.10
+
 #define RIGHT         true
 #define LEFT          false
 

@@ -137,10 +137,18 @@ float* rayIntersect(Ray* ray1, Ray* ray2)
     float xPos;
     float yPos;
 
-    float crossA = ray1->dx * ray2->dy;
-    float crossB = ray1->dy * ray2->dx;
-    float dotA   = ray1->dx * ray2->dx;
-    float dotB   = ray1->dy * ray2->dy;
+    float R1dx = ray1->dx;
+    float R1dy = ray1->dy;
+    float R2dx = ray2->dx;
+    float R2dy = ray2->dy;
+
+    normalize(&R1dx, &R1dy);
+    normalize(&R2dx, &R2dy);
+
+    float crossA = R1dx * R2dy;
+    float crossB = R1dy * R2dx;
+    float dotA   = R1dx * R2dx;
+    float dotB   = R1dy * R2dy;
 
     xPos = (ray1->xPos * crossB) - (ray2->xPos * crossA)
          + (ray2->yPos * dotA)   - (ray1->yPos * dotA);
@@ -155,16 +163,16 @@ float* rayIntersect(Ray* ray1, Ray* ray2)
 
         yPos /= crossA - crossB;
 
-        if(xPos * ray1->dx < ray1->xPos * ray1->dx) //Behind ray1 in the x
+        if(xPos * R1dx < ray1->xPos * R1dx) //Behind ray1 in the x
             return NULL;
 
-        if(yPos * ray1->dy < ray1->yPos * ray1->dy) //Behind ray1 in the y
+        if(yPos * R1dy < ray1->yPos * R1dy) //Behind ray1 in the y
             return NULL;
 
-        if(xPos * ray2->dx < ray2->xPos * ray2->dx) //Behind ray2 in the x
+        if(xPos * R2dx < ray2->xPos * R2dx) //Behind ray2 in the x
             return NULL;
 
-        if(yPos * ray2->dy < ray2->yPos * ray2->dy) //Behind ray2 in the y
+        if(yPos * R2dy < ray2->yPos * R2dy) //Behind ray2 in the y
             return NULL;
 
         result[0] = xPos;
@@ -176,12 +184,12 @@ float* rayIntersect(Ray* ray1, Ray* ray2)
     {
         if(xPos == 0.0 && yPos == 0.0) //Hit
         {
-            if(ray2->xPos * ray1->dx < ray1->xPos * ray1->dx)
+            if(ray2->xPos * R1dx < ray1->xPos * R1dx)
             {
                 result[0] = ray1->xPos;
                 result[1] = ray1->yPos;
             }
-            else if(ray2->yPos * ray1->dy < ray1->yPos * ray1->dy)
+            else if(ray2->yPos * R1dy < ray1->yPos * R1dy)
             {
                 result[0] = ray1->xPos;
                 result[1] = ray1->yPos;
@@ -202,10 +210,8 @@ float* rayIntersect(Ray* ray1, Ray* ray2)
 }
 
 
-RayHit* rayCastBsp (BspBranch* currentNode, Ray* ray)
+RayHit* rayCastBsp (BspBranch* currentNode, Ray* ray, RayHit* returnData)
 {
-    int[50] text;
-
     float infinity;
     float negInfinity;
     asm
@@ -216,13 +222,15 @@ RayHit* rayCastBsp (BspBranch* currentNode, Ray* ray)
         "mov  {negInfinity}, R0"
     }
 
+    RayHit* returnHit = NULL;
+
     if(currentNode->leaf != NULL)
     {
         int       segSize  = sizeof(Segment*);
         Segment** wallList = currentNode->leaf->segList;
         Segment*  currentWall;
         float*    hitPoint;
-        float     wallDistanceSQRD;
+        float     wallDistance;
         Ray       wallRay;
 
         while(*wallList != NULL)
@@ -242,29 +250,44 @@ RayHit* rayCastBsp (BspBranch* currentNode, Ray* ray)
                     float xPos = *(hitPoint);
                     float yPos = *(hitPoint + FLOATSIZE);
 
-                    wallDistanceSQRD = pow(xPos - wallRay.xPos, 2.0)
-                                     + pow(yPos - wallRay.yPos, 2.0);
+                    wallDistance = dist(xPos - wallRay.xPos, yPos - wallRay.yPos);
 
-                    if(wallDistanceSQRD <= pow(currentWall->length, 2.0))
+                    if(wallDistance <= currentWall->length)
                     {
-                        RayHit returnData;
-                        returnData.xPos = xPos;
-                        returnData.yPos = yPos;
-                        returnData.zPos = ray->zPos;
-                        returnData.wall = currentWall;
+                        bool newHit = false;
 
-                        return &returnData;
+                        if(returnHit == NULL)
+                        {
+                            newHit = true;
+                            returnHit = returnData;
+                        }
+                        else if(
+                            dist(xPos - ray->xPos, yPos - ray->yPos) >
+                            dist(returnData->xPos - ray->xPos, returnData->yPos - ray->yPos)
+                        )
+                        {
+                            newHit = true;
+                        }
+
+                        if(newHit == true)
+                        {
+                            returnData->xPos = xPos;
+                            returnData->yPos = yPos;
+                            returnData->zPos = ray->zPos;
+                            returnData->wall = currentWall;
+                        }
                     }
                 }
             }
 
             wallList += segSize;
         }
+        if(returnHit != NULL)
+            return returnData;
     }
 
     bool side = onRightSideBranch(currentNode, ray->xPos, ray->yPos);
 
-    RayHit* returnHit = NULL;
     BspBranch* tempNode;
 
     if(side == RIGHT)
@@ -273,13 +296,13 @@ RayHit* rayCastBsp (BspBranch* currentNode, Ray* ray)
         tempNode = currentNode->rightNode;
         if(tempNode != NULL)
         {
-            returnHit = rayCastBsp(tempNode, ray);
+            returnHit = rayCastBsp(tempNode, ray, returnData);
         }
 
         tempNode = currentNode->leftNode;
         if(returnHit == NULL && tempNode != NULL)
         {
-            returnHit = rayCastBsp(tempNode, ray);
+            returnHit = rayCastBsp(tempNode, ray, returnData);
         }
     }
     else
@@ -287,13 +310,13 @@ RayHit* rayCastBsp (BspBranch* currentNode, Ray* ray)
         tempNode = currentNode->leftNode;
         if(tempNode != NULL)
         {
-            returnHit = rayCastBsp(tempNode, ray);
+            returnHit = rayCastBsp(tempNode, ray, returnData);
         }
 
         tempNode = currentNode->rightNode;
         if(returnHit == NULL && tempNode != NULL)
         {
-            returnHit = rayCastBsp(tempNode, ray);
+            returnHit = rayCastBsp(tempNode, ray, returnData);
         }
     }
 
@@ -361,6 +384,156 @@ BspBranch* locateBsp(BspBranch* currentNode, float xPos, float yPos)
     }
 
     return currentNode;
+}
+
+void playerMovement(Player* person, BspBranch* collisionMap)
+{
+    int[50] text;
+
+    //Turn player
+    if(gamepad_button_b() > 0)
+        person->direction += 0.001 * gamepad_button_b();
+    if(gamepad_button_a() > 0)
+        person->direction -= 0.001 * gamepad_button_a();
+
+    person->dirCos = cos(person->direction);
+    person->dirSin = sin(person->direction);
+
+    //Apply friction
+    person->xSpeed *= 1.0 - PFRICTION;
+    person->ySpeed *= 1.0 - PFRICTION;
+
+    //Apply inputs
+    if(gamepad_left() > 0)
+    {
+        person->xSpeed -= (float)min(gamepad_left(), 5)
+                     * person->dirSin * PACCELERAION;
+        person->ySpeed += (float)min(gamepad_left(), 5)
+                     * person->dirCos * PACCELERAION;
+    }
+    if(gamepad_right() > 0)
+    {
+        person->xSpeed += (float)min(gamepad_right(), 5)
+                     * person->dirSin * PACCELERAION;
+        person->ySpeed -= (float)min(gamepad_right(), 5)
+                     * person->dirCos * PACCELERAION;
+    }
+    if(gamepad_up() > 0)
+    {
+        person->xSpeed += (float)min(gamepad_up(), 5)
+                     * person->dirCos * PACCELERAION;
+        person->ySpeed += (float)min(gamepad_up(), 5)
+                     * person->dirSin * PACCELERAION;
+    }
+    if(gamepad_down() > 0)
+    {
+        person->xSpeed -= (float)min(gamepad_down(), 5)
+                     * person->dirCos * PACCELERAION;
+        person->ySpeed -= (float)min(gamepad_down(), 5)
+                     * person->dirSin * PACCELERAION;
+    }
+
+    if(gamepad_button_l() > 0)
+    {
+        person->xSpeed = 0.0;
+        person->ySpeed = 0.0;
+    }
+
+
+
+    //Limit speed
+    if(dist(person->xSpeed, person->ySpeed) > PMAXSPEED)
+    {
+        float angle = atan2(person->ySpeed, person->xSpeed);
+        person->xSpeed = PMAXSPEED * cos(angle);
+        person->ySpeed = PMAXSPEED * sin(angle);
+    }
+
+    Ray     motion;
+    RayHit  hitData;
+    RayHit* intersect;
+
+    if(person->xSpeed != 0.0 || person->ySpeed != 0.0)
+    {
+        float speed = dist(person->xSpeed, person->ySpeed);
+
+        motion.dx = person->xSpeed;
+        motion.dy = person->ySpeed;
+        motion.dz = person->zSpeed;
+        motion.xPos = person->xPos;
+        motion.yPos = person->yPos;
+        motion.zPos = person->zPos;
+
+        intersect = rayCastBsp(collisionMap , &motion, &hitData);
+
+        bool hit = false;
+
+        if(intersect != NULL)
+        {
+            float hitDistance = dist(
+                intersect->xPos - person->xPos,
+                intersect->yPos - person->yPos
+            );
+
+            print_at(240, 320, "D:");
+            ftoa(hitDistance, text);
+            print_at(260, 320, text);
+            ftoa(speed, text);
+            print_at(240, 340, "S:");
+            print_at(260, 340, text);
+
+            if(hitDistance <= speed)
+            {
+                hit = true;
+            }
+        }
+
+        if(hit == true)
+        {
+            float newPosX = intersect->xPos;
+            float newPosY = intersect->yPos;
+
+            Segment* wall = intersect->wall;
+
+            float wallAngle = atan2(wall->dy, wall->dx);
+            float rayAngle  = atan2(person->ySpeed, person->xSpeed);
+
+            newPosX -= (cos(rayAngle) / sin(rayAngle - wallAngle)) * MOVEPADDING;
+            newPosY -= (sin(rayAngle) / sin(rayAngle - wallAngle)) * MOVEPADDING;
+
+            person->xPos = newPosX;
+            person->yPos = newPosY;
+            person->xSpeed = 0.0;
+            person->ySpeed = 0.0;
+        }
+        else
+        {
+            person->xPos += person->xSpeed;
+            person->yPos += person->ySpeed;
+            person->zPos += person->zSpeed;
+        }
+    }
+    else
+    {
+        motion.dx = person->dirCos;
+        motion.dy = person->dirSin;
+        motion.dz = 0;
+        motion.xPos = person->xPos;
+        motion.yPos = person->yPos;
+        motion.zPos = person->zPos;
+
+        intersect = rayCastBsp(collisionMap , &motion, &hitData);
+
+    }
+    if(intersect != NULL)
+    {
+        print_at(120, 320, "X:");
+        ftoa(intersect->xPos, text);
+        print_at(140, 320, text);
+        ftoa(intersect->yPos, text);
+        print_at(120, 340, "Y:");
+        print_at(140, 340, text);
+    }
 }
 
 
