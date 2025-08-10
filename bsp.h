@@ -73,6 +73,7 @@ struct RayHit
     float    zPos;
     Segment* wall;
     bool     side;
+    float    onWallDist;
 };
 
 bool onRightSideBranch(BspBranch* branch, float x, float y)
@@ -130,10 +131,8 @@ bool onLeftSideSeg(Segment* seg, float x, float y)
 }
 
 //NOTE: ray2 hits ray1
-float* rayIntersect(Ray* ray1, Ray* ray2)
+bool rayIntersect(Ray* ray1, Ray* ray2, float* data)
 {
-    float[2] result;
-
     float xPos;
     float yPos;
 
@@ -164,21 +163,21 @@ float* rayIntersect(Ray* ray1, Ray* ray2)
         yPos /= crossA - crossB;
 
         if(xPos * R1dx < ray1->xPos * R1dx) //Behind ray1 in the x
-            return NULL;
+            return false;
 
         if(yPos * R1dy < ray1->yPos * R1dy) //Behind ray1 in the y
-            return NULL;
+            return false;
 
         if(xPos * R2dx < ray2->xPos * R2dx) //Behind ray2 in the x
-            return NULL;
+            return false;
 
         if(yPos * R2dy < ray2->yPos * R2dy) //Behind ray2 in the y
-            return NULL;
+            return false;
 
-        result[0] = xPos;
-        result[1] = yPos;
+        data[0] = xPos;
+        data[1] = yPos;
 
-        return &(result[0]);
+        return true;
     }
     else //Parallel
     {
@@ -186,25 +185,25 @@ float* rayIntersect(Ray* ray1, Ray* ray2)
         {
             if(ray2->xPos * R1dx < ray1->xPos * R1dx)
             {
-                result[0] = ray1->xPos;
-                result[1] = ray1->yPos;
+                data[0] = ray1->xPos;
+                data[1] = ray1->yPos;
             }
             else if(ray2->yPos * R1dy < ray1->yPos * R1dy)
             {
-                result[0] = ray1->xPos;
-                result[1] = ray1->yPos;
+                data[0] = ray1->xPos;
+                data[1] = ray1->yPos;
             }
             else
             {
-                result[0] = ray2->xPos;
-                result[1] = ray2->yPos;
+                data[0] = ray2->xPos;
+                data[1] = ray2->yPos;
             }
 
-            return &(result[0]);
+            return true;
         }
         else //No Hit
         {
-            return NULL;
+            return false;
         }
     }
 }
@@ -229,7 +228,7 @@ RayHit* rayCastBsp (BspBranch* currentNode, Ray* ray, RayHit* returnData)
         int       segSize  = sizeof(Segment*);
         Segment** wallList = currentNode->leaf->segList;
         Segment*  currentWall;
-        float*    hitPoint;
+        float[2]  hitPoint;
         float     wallDistance;
         Ray       wallRay;
 
@@ -244,11 +243,10 @@ RayHit* rayCastBsp (BspBranch* currentNode, Ray* ray, RayHit* returnData)
                 wallRay.dx   = currentWall->dx;
                 wallRay.dy   = currentWall->dy;
 
-                hitPoint = rayIntersect(&wallRay, ray);
-                if(hitPoint != NULL)
+                if(rayIntersect(&wallRay, ray, (float*)&hitPoint[0]))
                 {
-                    float xPos = *(hitPoint);
-                    float yPos = *(hitPoint + FLOATSIZE);
+                    float xPos = hitPoint[0];
+                    float yPos = hitPoint[1];
 
                     wallDistance = dist(xPos - wallRay.xPos, yPos - wallRay.yPos);
 
@@ -275,6 +273,7 @@ RayHit* rayCastBsp (BspBranch* currentNode, Ray* ray, RayHit* returnData)
                             returnData->yPos = yPos;
                             returnData->zPos = ray->zPos;
                             returnData->wall = currentWall;
+                            returnData->onWallDist = wallDistance;
                         }
                     }
                 }
@@ -470,15 +469,14 @@ void playerMovement(Player* person, BspBranch* collisionMap)
 
         float wallAngle = atan2(intersect->wall->dy, intersect->wall->dx);
         float rayAngle  = atan2(person->ySpeed, person->xSpeed);
+        float hitDistance;
 
         if(intersect != NULL)
         {
-            float hitDistance = dist(
+            hitDistance = dist(
                 intersect->xPos - person->xPos,
                 intersect->yPos - person->yPos
             );
-
-            hitDistance -= MOVEPADDING / sin(rayAngle - wallAngle);
 
             print_at(240, 320, "D:");
             ftoa(hitDistance, text);
@@ -487,23 +485,91 @@ void playerMovement(Player* person, BspBranch* collisionMap)
             print_at(240, 340, "S:");
             print_at(260, 340, text);
 
-            if(hitDistance <= speed)
+            float angleDiff = rayAngle - wallAngle;
+
+            if(hitDistance - (MOVEPADDING / sin(angleDiff)) <= speed)
             {
+                float buffer = min(MOVEPADDING, hitDistance * sin(angleDiff));
+
+                float paddingOffset = buffer * cos(angleDiff) / sin(angleDiff);
+
+                /*
+                ftoa(MOVEPADDING, text);
+                print_at(360, 320, "P:");
+                print_at(380, 320, text);
+                ftoa(hitDistance * sin(angleDiff), text);
+                print_at(360, 340, "N:");
+                print_at(380, 340, text);
+                */
+
+
+                ftoa(paddingOffset, text);
+                print_at(360, 320, "P:");
+                print_at(380, 320, text);
+                ftoa(intersect->onWallDist - paddingOffset, text);
+                print_at(360, 340, "C:");
+                print_at(380, 340, text);
+
+
+                ftoa(-buffer, text);
+                print_at(480, 320, "L:");
+                print_at(500, 320, text);
+                ftoa(intersect->wall->length + buffer, text);
+                print_at(480, 340, "R:");
+                print_at(500, 340, text);
+
                 hit = true;
+
+                //Left side
+                if(intersect->onWallDist - paddingOffset < -MOVEPADDING)
+                    hit = false;
+
+                if(
+                    intersect->onWallDist - paddingOffset >
+                    intersect->wall->length + MOVEPADDING
+                )
+                    hit = false;
+            }
+            else
+            {
+                float paddingOffset = MOVEPADDING * cos(angleDiff) / sin(angleDiff);
+
+                ftoa(MOVEPADDING, text);
+                print_at(360, 320, "P:");
+                print_at(380, 320, text);
+                ftoa(hitDistance * sin(angleDiff), text);
+                print_at(360, 340, "N:");
+                print_at(380, 340, text);
+
+                /*
+                ftoa(paddingOffset, text);
+                print_at(360, 320, "P:");
+                print_at(380, 320, text);
+                ftoa(intersect->onWallDist - paddingOffset, text);
+                print_at(360, 340, "C:");
+                print_at(380, 340, text);
+                */
+
+
+                ftoa(-MOVEPADDING, text);
+                print_at(480, 320, "L:");
+                print_at(500, 320, text);
+                ftoa(intersect->wall->length + MOVEPADDING, text);
+                print_at(480, 340, "R:");
+                print_at(500, 340, text);
             }
         }
 
         if(hit == true)
         {
-            float newPosX = intersect->xPos;
-            float newPosY = intersect->yPos;
+            float paddingDist = MOVEPADDING / sin(rayAngle - wallAngle);
 
+            if(hitDistance - paddingDist > 0)
+            {
+                person->xPos = intersect->xPos - (paddingDist * cos(rayAngle));
+                person->yPos = intersect->yPos - (paddingDist * sin(rayAngle));
+            }
 
-            newPosX -= (cos(rayAngle) / sin(rayAngle - wallAngle)) * MOVEPADDING;
-            newPosY -= (sin(rayAngle) / sin(rayAngle - wallAngle)) * MOVEPADDING;
-
-            person->xPos = newPosX;
-            person->yPos = newPosY;
             person->xSpeed = 0.0;
             person->ySpeed = 0.0;
         }

@@ -58,9 +58,6 @@ void main(void)
     BspBranch   node3;
     BspBranch   node4;
     BspBranch   node5;
-    float speed = 1.1;
-    float speedX;
-    float speedY;
 
     int[732] text;
 
