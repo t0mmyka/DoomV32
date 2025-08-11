@@ -136,6 +136,11 @@ bool rayIntersect(Ray* ray1, Ray* ray2, float* data)
     float xPos;
     float yPos;
 
+    float R1x = ray1->xPos;
+    float R1y = ray1->yPos;
+    float R2x = ray2->xPos;
+    float R2y = ray2->yPos;
+
     float R1dx = ray1->dx;
     float R1dy = ray1->dy;
     float R2dx = ray2->dx;
@@ -149,11 +154,9 @@ bool rayIntersect(Ray* ray1, Ray* ray2, float* data)
     float dotA   = R1dx * R2dx;
     float dotB   = R1dy * R2dy;
 
-    xPos = (ray1->xPos * crossB) - (ray2->xPos * crossA)
-         + (ray2->yPos * dotA)   - (ray1->yPos * dotA);
+    xPos = (R1x * crossB) - (R2x * crossA) + (R2y * dotA) - (R1y * dotA);
 
-    yPos = (ray1->yPos * crossA) - (ray2->yPos * crossB)
-         + (ray2->xPos * dotB)   - (ray1->xPos * dotB);
+    yPos = (R1y * crossA) - (R2y * crossB) + (R2x * dotB) - (R1x * dotB);
 
 
     if(crossA != crossB) //Single hit
@@ -162,16 +165,10 @@ bool rayIntersect(Ray* ray1, Ray* ray2, float* data)
 
         yPos /= crossA - crossB;
 
-        if(xPos * R1dx < ray1->xPos * R1dx) //Behind ray1 in the x
+        if(-R1dx * (xPos - R1x) > R1dy * (yPos - R1y)) //Behind ray1
             return false;
 
-        if(yPos * R1dy < ray1->yPos * R1dy) //Behind ray1 in the y
-            return false;
-
-        if(xPos * R2dx < ray2->xPos * R2dx) //Behind ray2 in the x
-            return false;
-
-        if(yPos * R2dy < ray2->yPos * R2dy) //Behind ray2 in the y
+        if(-R2dx * (xPos - R2x) > R2dy * (yPos - R2y)) //Behind ray2
             return false;
 
         data[0] = xPos;
