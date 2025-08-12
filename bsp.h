@@ -385,8 +385,6 @@ BspBranch* locateBsp(BspBranch* currentNode, float xPos, float yPos)
 
 void movePlayer(Player* person, BspBranch* collisionMap)
 {
-    int[50] text;
-
     Ray     motion;
     RayHit  hitData;
     RayHit* intersect;
@@ -417,13 +415,6 @@ void movePlayer(Player* person, BspBranch* collisionMap)
                 intersect->yPos - person->yPos
             );
 
-            print_at(240, 320, "D:");
-            ftoa(hitDistance, text);
-            print_at(260, 320, text);
-            ftoa(speed, text);
-            print_at(240, 340, "S:");
-            print_at(260, 340, text);
-
             float angleDiff = rayAngle - wallAngle;
 
             if(hitDistance - (MOVEPADDING / sin(angleDiff)) <= speed)
@@ -431,31 +422,6 @@ void movePlayer(Player* person, BspBranch* collisionMap)
                 float buffer = min(MOVEPADDING, hitDistance * sin(angleDiff));
 
                 float paddingOffset = buffer * cos(angleDiff) / sin(angleDiff);
-
-                /*
-                ftoa(MOVEPADDING, text);
-                print_at(360, 320, "P:");
-                print_at(380, 320, text);
-                ftoa(hitDistance * sin(angleDiff), text);
-                print_at(360, 340, "N:");
-                print_at(380, 340, text);
-                */
-
-
-                ftoa(paddingOffset, text);
-                print_at(360, 320, "P:");
-                print_at(380, 320, text);
-                ftoa(intersect->onWallDist - paddingOffset, text);
-                print_at(360, 340, "C:");
-                print_at(380, 340, text);
-
-
-                ftoa(-buffer, text);
-                print_at(480, 320, "L:");
-                print_at(500, 320, text);
-                ftoa(intersect->wall->length + buffer, text);
-                print_at(480, 340, "R:");
-                print_at(500, 340, text);
 
                 hit = true;
 
@@ -473,29 +439,6 @@ void movePlayer(Player* person, BspBranch* collisionMap)
             {
                 float paddingOffset = MOVEPADDING * cos(angleDiff) / sin(angleDiff);
 
-                ftoa(MOVEPADDING, text);
-                print_at(360, 320, "P:");
-                print_at(380, 320, text);
-                ftoa(hitDistance * sin(angleDiff), text);
-                print_at(360, 340, "N:");
-                print_at(380, 340, text);
-
-                /*
-                ftoa(paddingOffset, text);
-                print_at(360, 320, "P:");
-                print_at(380, 320, text);
-                ftoa(intersect->onWallDist - paddingOffset, text);
-                print_at(360, 340, "C:");
-                print_at(380, 340, text);
-                */
-
-
-                ftoa(-MOVEPADDING, text);
-                print_at(480, 320, "L:");
-                print_at(500, 320, text);
-                ftoa(intersect->wall->length + MOVEPADDING, text);
-                print_at(480, 340, "R:");
-                print_at(500, 340, text);
             }
         }
 
@@ -527,27 +470,6 @@ void movePlayer(Player* person, BspBranch* collisionMap)
             person->yPos += person->ySpeed;
             person->zPos += person->zSpeed;
         }
-    }
-    else
-    {
-        motion.dx = person->dirCos;
-        motion.dy = person->dirSin;
-        motion.dz = 0;
-        motion.xPos = person->xPos;
-        motion.yPos = person->yPos;
-        motion.zPos = person->zPos;
-
-        intersect = rayCastBsp(collisionMap , &motion, &hitData);
-
-    }
-    if(intersect != NULL)
-    {
-        print_at(120, 320, "X:");
-        ftoa(intersect->xPos, text);
-        print_at(140, 320, text);
-        ftoa(intersect->yPos, text);
-        print_at(120, 340, "Y:");
-        print_at(140, 340, text);
     }
 }
 
