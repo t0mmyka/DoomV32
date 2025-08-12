@@ -382,68 +382,10 @@ BspBranch* locateBsp(BspBranch* currentNode, float xPos, float yPos)
     return currentNode;
 }
 
-void playerMovement(Player* person, BspBranch* collisionMap)
+
+void movePlayer(Player* person, BspBranch* collisionMap)
 {
     int[50] text;
-
-    //Turn player
-    if(gamepad_button_b() > 0)
-        person->direction += 0.001 * gamepad_button_b();
-    if(gamepad_button_a() > 0)
-        person->direction -= 0.001 * gamepad_button_a();
-
-    person->dirCos = cos(person->direction);
-    person->dirSin = sin(person->direction);
-
-    //Apply friction
-    person->xSpeed *= 1.0 - PFRICTION;
-    person->ySpeed *= 1.0 - PFRICTION;
-
-    //Apply inputs
-    if(gamepad_left() > 0)
-    {
-        person->xSpeed -= (float)min(gamepad_left(), 5)
-                     * person->dirSin * PACCELERAION;
-        person->ySpeed += (float)min(gamepad_left(), 5)
-                     * person->dirCos * PACCELERAION;
-    }
-    if(gamepad_right() > 0)
-    {
-        person->xSpeed += (float)min(gamepad_right(), 5)
-                     * person->dirSin * PACCELERAION;
-        person->ySpeed -= (float)min(gamepad_right(), 5)
-                     * person->dirCos * PACCELERAION;
-    }
-    if(gamepad_up() > 0)
-    {
-        person->xSpeed += (float)min(gamepad_up(), 5)
-                     * person->dirCos * PACCELERAION;
-        person->ySpeed += (float)min(gamepad_up(), 5)
-                     * person->dirSin * PACCELERAION;
-    }
-    if(gamepad_down() > 0)
-    {
-        person->xSpeed -= (float)min(gamepad_down(), 5)
-                     * person->dirCos * PACCELERAION;
-        person->ySpeed -= (float)min(gamepad_down(), 5)
-                     * person->dirSin * PACCELERAION;
-    }
-
-    if(gamepad_button_l() > 0)
-    {
-        person->xSpeed = 0.0;
-        person->ySpeed = 0.0;
-    }
-
-
-
-    //Limit speed
-    if(dist(person->xSpeed, person->ySpeed) > PMAXSPEED)
-    {
-        float angle = atan2(person->ySpeed, person->xSpeed);
-        person->xSpeed = PMAXSPEED * cos(angle);
-        person->ySpeed = PMAXSPEED * sin(angle);
-    }
 
     Ray     motion;
     RayHit  hitData;
@@ -567,8 +509,17 @@ void playerMovement(Player* person, BspBranch* collisionMap)
                 person->yPos = intersect->yPos - (paddingDist * sin(rayAngle));
             }
 
-            person->xSpeed = 0.0;
-            person->ySpeed = 0.0;
+            float remaining = intersect->wall->dx * person->xSpeed
+                            + intersect->wall->dy * person->ySpeed;
+
+            remaining /= pow(intersect->wall->length, 2.0);
+
+            person->xSpeed = remaining * intersect->wall->dx
+                           * (1.0 - PWALLFRICTION);
+            person->ySpeed = remaining * intersect->wall->dy
+                           * (1.0 - PWALLFRICTION);
+
+            movePlayer(person, collisionMap);
         }
         else
         {
@@ -598,6 +549,71 @@ void playerMovement(Player* person, BspBranch* collisionMap)
         print_at(120, 340, "Y:");
         print_at(140, 340, text);
     }
+}
+
+
+void playerMovement(Player* person, BspBranch* collisionMap)
+{
+    //Turn player
+    if(gamepad_button_b() > 0)
+        person->direction += 0.001 * gamepad_button_b();
+    if(gamepad_button_a() > 0)
+        person->direction -= 0.001 * gamepad_button_a();
+
+    person->dirCos = cos(person->direction);
+    person->dirSin = sin(person->direction);
+
+    //Apply friction
+    person->xSpeed *= 1.0 - PFRICTION;
+    person->ySpeed *= 1.0 - PFRICTION;
+
+    //Apply inputs
+    if(gamepad_left() > 0)
+    {
+        person->xSpeed -= (float)min(gamepad_left(), 5)
+                     * person->dirSin * PACCELERAION;
+        person->ySpeed += (float)min(gamepad_left(), 5)
+                     * person->dirCos * PACCELERAION;
+    }
+    if(gamepad_right() > 0)
+    {
+        person->xSpeed += (float)min(gamepad_right(), 5)
+                     * person->dirSin * PACCELERAION;
+        person->ySpeed -= (float)min(gamepad_right(), 5)
+                     * person->dirCos * PACCELERAION;
+    }
+    if(gamepad_up() > 0)
+    {
+        person->xSpeed += (float)min(gamepad_up(), 5)
+                     * person->dirCos * PACCELERAION;
+        person->ySpeed += (float)min(gamepad_up(), 5)
+                     * person->dirSin * PACCELERAION;
+    }
+    if(gamepad_down() > 0)
+    {
+        person->xSpeed -= (float)min(gamepad_down(), 5)
+                     * person->dirCos * PACCELERAION;
+        person->ySpeed -= (float)min(gamepad_down(), 5)
+                     * person->dirSin * PACCELERAION;
+    }
+
+    if(gamepad_button_l() > 0)
+    {
+        person->xSpeed = 0.0;
+        person->ySpeed = 0.0;
+    }
+
+
+
+    //Limit speed
+    if(dist(person->xSpeed, person->ySpeed) > PMAXSPEED)
+    {
+        float angle = atan2(person->ySpeed, person->xSpeed);
+        person->xSpeed = PMAXSPEED * cos(angle);
+        person->ySpeed = PMAXSPEED * sin(angle);
+    }
+
+    movePlayer(person, collisionMap);
 }
 
 

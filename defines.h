@@ -12,9 +12,10 @@
 #define MOVEPADDING 4.05
 #define MOVERATIO   0.5
 
-#define PACCELERAION 0.10
-#define PMAXSPEED    0.75
-#define PFRICTION    0.10
+#define PWALLFRICTION 0.15
+#define PACCELERAION  0.10
+#define PMAXSPEED     0.75
+#define PFRICTION     0.10
 
 #define RIGHT         true
 #define LEFT          false
