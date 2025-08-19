@@ -64,6 +64,7 @@ struct BspBranch
     BspBranch* rightNode;
     BspBranch* leftNode;
     BspLeaf*   leaf;
+    Sector*    sector;
 };
 
 struct RayHit
@@ -206,8 +207,28 @@ bool rayIntersect(Ray* ray1, Ray* ray2, float* data)
 }
 
 
-RayHit* rayCastBsp (BspBranch* currentNode, Ray* ray, RayHit* returnData)
+BspBranch* locateBsp(BspBranch* currentNode, float xPos, float yPos)
 {
+    while(currentNode->leftNode != NULL)
+    {
+        if(onRightSideBranch(currentNode, xPos, yPos))
+        {
+            currentNode = currentNode->rightNode;
+        }
+        else
+        {
+            currentNode = currentNode->leftNode;
+        }
+    }
+
+    return currentNode;
+}
+
+
+RayHit* rayCastBsp(BspBranch* currentNode, Ray* ray, float height, RayHit* returnData)
+{
+    int[50] text;
+
     float infinity;
     float negInfinity;
     asm
@@ -249,28 +270,51 @@ RayHit* rayCastBsp (BspBranch* currentNode, Ray* ray, RayHit* returnData)
 
                     if(wallDistance <= currentWall->length)
                     {
+                        bool hit = false;
+
+                        if(currentWall->isPortal == false)
+                            hit = true;
+                        else
+                        {
+                            float hitDistance = dist(xPos - ray->xPos, yPos - ray->yPos);
+                            float travelUnits = hitDistance / dist(ray->dx, ray->dy);
+                            float hitZ = ray->zPos + (travelUnits * ray->dz);
+
+                            if(
+                                hitZ < currentWall->sectorLeft->floorHeight ||
+                                hitZ + height > currentWall->sectorLeft->ceilingHeight
+                            )
+                            {
+                                hit = true;
+                            }
+
+                        }
+
                         bool newHit = false;
 
-                        if(returnHit == NULL)
+                        if(hit == true)
                         {
-                            newHit = true;
-                            returnHit = returnData;
-                        }
-                        else if(
-                            dist(xPos - ray->xPos, yPos - ray->yPos) >
-                            dist(returnData->xPos - ray->xPos, returnData->yPos - ray->yPos)
-                        )
-                        {
-                            newHit = true;
-                        }
+                            if(returnHit == NULL)
+                            {
+                                newHit = true;
+                                returnHit = returnData;
+                            }
+                            else if(
+                                dist(xPos - ray->xPos, yPos - ray->yPos) >
+                                dist(returnData->xPos - ray->xPos, returnData->yPos - ray->yPos)
+                            )
+                            {
+                                newHit = true;
+                            }
 
-                        if(newHit == true)
-                        {
-                            returnData->xPos = xPos;
-                            returnData->yPos = yPos;
-                            returnData->zPos = ray->zPos;
-                            returnData->wall = currentWall;
-                            returnData->onWallDist = wallDistance;
+                            if(newHit == true)
+                            {
+                                returnData->xPos = xPos;
+                                returnData->yPos = yPos;
+                                returnData->zPos = ray->zPos;
+                                returnData->wall = currentWall;
+                                returnData->onWallDist = wallDistance;
+                            }
                         }
                     }
                 }
@@ -292,13 +336,13 @@ RayHit* rayCastBsp (BspBranch* currentNode, Ray* ray, RayHit* returnData)
         tempNode = currentNode->rightNode;
         if(tempNode != NULL)
         {
-            returnHit = rayCastBsp(tempNode, ray, returnData);
+            returnHit = rayCastBsp(tempNode, ray, height, returnData);
         }
 
         tempNode = currentNode->leftNode;
         if(returnHit == NULL && tempNode != NULL)
         {
-            returnHit = rayCastBsp(tempNode, ray, returnData);
+            returnHit = rayCastBsp(tempNode, ray, height, returnData);
         }
     }
     else
@@ -306,13 +350,13 @@ RayHit* rayCastBsp (BspBranch* currentNode, Ray* ray, RayHit* returnData)
         tempNode = currentNode->leftNode;
         if(tempNode != NULL)
         {
-            returnHit = rayCastBsp(tempNode, ray, returnData);
+            returnHit = rayCastBsp(tempNode, ray, height, returnData);
         }
 
         tempNode = currentNode->rightNode;
         if(returnHit == NULL && tempNode != NULL)
         {
-            returnHit = rayCastBsp(tempNode, ray, returnData);
+            returnHit = rayCastBsp(tempNode, ray, height, returnData);
         }
     }
 
@@ -365,29 +409,26 @@ void areBranchesVisable(BspBranch* branch, Player* pov, bool* truthValues)
     }
 }
 
-BspBranch* locateBsp(BspBranch* currentNode, float xPos, float yPos)
-{
-    while(currentNode->leftNode != NULL)
-    {
-        if(onRightSideBranch(currentNode, xPos, yPos))
-        {
-            currentNode = currentNode->leftNode;
-        }
-        else
-        {
-            currentNode = currentNode->rightNode;
-        }
-    }
-
-    return currentNode;
-}
-
-
 void movePlayer(Player* person, BspBranch* collisionMap)
 {
     Ray     motion;
     RayHit  hitData;
     RayHit* intersect;
+
+    BspBranch* section;
+    float floorHeight;
+    float ceilingHeight;
+
+    section = locateBsp(collisionMap, person->xPos, person->yPos);
+    floorHeight = section->sector->floorHeight;
+    ceilingHeight = section->sector->ceilingHeight;
+
+    person->zSpeed = fClamp(
+        person->zSpeed,
+        floorHeight - person->zPos,
+        ceilingHeight - person->zPos - person->height
+    );
+
 
     if(person->xSpeed != 0.0 || person->ySpeed != 0.0)
     {
@@ -400,7 +441,7 @@ void movePlayer(Player* person, BspBranch* collisionMap)
         motion.yPos = person->yPos;
         motion.zPos = person->zPos;
 
-        intersect = rayCastBsp(collisionMap , &motion, &hitData);
+        intersect = rayCastBsp(collisionMap , &motion, person->height, &hitData);
 
         bool hit = false;
 
@@ -468,9 +509,16 @@ void movePlayer(Player* person, BspBranch* collisionMap)
         {
             person->xPos += person->xSpeed;
             person->yPos += person->ySpeed;
-            person->zPos += person->zSpeed;
         }
     }
+
+    section = locateBsp(collisionMap, person->xPos, person->yPos);
+    floorHeight = section->sector->floorHeight;
+    ceilingHeight = section->sector->ceilingHeight;
+
+    person->zPos += person->zSpeed;
+
+    person->zPos = fClamp(person->zPos, floorHeight, ceilingHeight - person->height);
 }
 
 
@@ -488,6 +536,7 @@ void playerMovement(Player* person, BspBranch* collisionMap)
     //Apply friction
     person->xSpeed *= 1.0 - PFRICTION;
     person->ySpeed *= 1.0 - PFRICTION;
+    person->zSpeed *= 1.0 - PFRICTION;
 
     //Apply inputs
     if(gamepad_left() > 0)
@@ -518,14 +567,16 @@ void playerMovement(Player* person, BspBranch* collisionMap)
         person->ySpeed -= (float)min(gamepad_down(), 5)
                      * person->dirSin * PACCELERAION;
     }
-
     if(gamepad_button_l() > 0)
     {
-        person->xSpeed = 0.0;
-        person->ySpeed = 0.0;
+        BspBranch* section = locateBsp(collisionMap, person->xPos, person->yPos);
+        float floorHeight = section->sector->floorHeight;
+        if(person->zPos - floorHeight < PJUMPDIST)
+            person->zSpeed += 1.5;
     }
 
-
+    //Apply gravity
+    person->zSpeed -= GRAVITY;
 
     //Limit speed
     if(dist(person->xSpeed, person->ySpeed) > PMAXSPEED)

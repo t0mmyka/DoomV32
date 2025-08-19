@@ -4112,7 +4112,7 @@ void drawSegment(FrameBuffer* clipping, Segment* seg, Player* pov)
             drawData.zBottom        = seg->sectorLeft->floorHeight;
             drawData.zTop           = seg->sectorLeft->floorHeight;
             drawData.zTop           = seg->sectorLeft->ceilingHeight;
-            drawData.zPos           = pov->zPos;
+            drawData.zPos           = pov->zPos + pov->camZ;
             drawData.textureWidth   = seg->bottom->width;
             drawData.textureHeight  = seg->bottom->height;
             drawData.yOffset        = seg->yOffset;
@@ -4135,7 +4135,7 @@ void drawSegment(FrameBuffer* clipping, Segment* seg, Player* pov)
             drawData.textureEnd     = textureXend;
             drawData.zBottom        = seg->sectorRight->floorHeight;
             drawData.zTop           = seg->sectorRight->ceilingHeight;
-            drawData.zPos           = pov->zPos;
+            drawData.zPos           = pov->zPos + pov->camZ;
             drawData.textureWidth   = seg->middle->width;
             drawData.textureHeight  = seg->middle->height;
             drawData.yOffset        = seg->yOffset;
@@ -4156,7 +4156,7 @@ void drawSegment(FrameBuffer* clipping, Segment* seg, Player* pov)
             drawData.textureEnd     = textureXend;
             drawData.zBottom        = seg->sectorRight->floorHeight;
             drawData.zTop           = seg->sectorRight->ceilingHeight;
-            drawData.zPos           = pov->zPos;
+            drawData.zPos           = pov->zPos + pov->camZ;
             drawData.textureWidth   = seg->middle->width;
             drawData.textureHeight  = seg->middle->height;
             drawData.yOffset        = seg->yOffset;
@@ -4188,7 +4188,7 @@ void drawSegment(FrameBuffer* clipping, Segment* seg, Player* pov)
             drawData.textureEnd     = textureXend;
             drawData.zBottom        = floorHeightFront;
             drawData.zTop           = ceilingHeightFront;
-            drawData.zPos           = pov->zPos;
+            drawData.zPos           = pov->zPos + pov->camZ;
             drawData.textureWidth   = seg->bottom->width;
             drawData.textureHeight  = seg->bottom->height;
             drawData.yOffset        = seg->yOffset;
@@ -4216,7 +4216,7 @@ void drawSegment(FrameBuffer* clipping, Segment* seg, Player* pov)
             drawData.textureEnd     = textureXend;
             drawData.zBottom        = ceilingHeightBack;
             drawData.zTop           = ceilingHeightFront;
-            drawData.zPos           = pov->zPos;
+            drawData.zPos           = pov->zPos + pov->camZ;
             drawData.textureWidth   = seg->bottom->width;
             drawData.textureHeight  = seg->bottom->height;
             drawData.yOffset        = seg->yOffset
@@ -4250,7 +4250,7 @@ void drawSegment(FrameBuffer* clipping, Segment* seg, Player* pov)
             drawData.textureEnd     = textureXend;
             drawData.zBottom        = floorHeightFront;
             drawData.zTop           = floorHeightBack;
-            drawData.zPos           = pov->zPos;
+            drawData.zPos           = pov->zPos + pov->camZ;
             drawData.textureWidth   = seg->bottom->width;
             drawData.textureHeight  = seg->bottom->height;
             drawData.yOffset        = seg->yOffset;
@@ -4282,7 +4282,7 @@ void drawSegment(FrameBuffer* clipping, Segment* seg, Player* pov)
             drawData.textureEnd     = textureXend;
             drawData.zBottom        = floorHeightFront;
             drawData.zTop           = ceilingHeightFront;
-            drawData.zPos           = pov->zPos;
+            drawData.zPos           = pov->zPos + pov->camZ;
             drawData.textureWidth   = seg->bottom->width;
             drawData.textureHeight  = seg->bottom->height;
             drawData.yOffset        = seg->yOffset;

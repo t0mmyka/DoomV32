@@ -12,10 +12,13 @@
 #define MOVEPADDING 0.05
 #define MOVERATIO   0.5
 
-#define PWALLFRICTION 0.15
+#define PWALLFRICTION 0.25
 #define PACCELERAION  0.10
 #define PMAXSPEED     0.75
 #define PFRICTION     0.10
+#define PJUMPDIST     0.20
+
+#define GRAVITY 0.06
 
 #define RIGHT         true
 #define LEFT          false
@@ -28,8 +31,6 @@
 
 #define LN2     0.693147182464599609375
 
-#define SAVEREGS "push BP" "push R0" "push R1" "push R2" "push R3" "push R4" "push R5" "push R6" "push R7" "push R8" "push R9" "push R10" "push R11" "push R12" "push R13"
-#define SETREGS  "pop R13" "pop R12" "pop R11" "pop R10" "pop R9" "pop R8" "pop R7" "pop R6" "pop R5" "pop R4" "pop R3" "pop R2" "pop R1" "pop R0" "pop BP"
 
 void func()
 {

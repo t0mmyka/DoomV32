@@ -20,6 +20,8 @@ struct Player
     float direction;
     float dirSin;
     float dirCos;
+    float height;
+    float camZ;
 };
 
 struct Ray
@@ -168,6 +170,20 @@ float nextafter(float from, float to)
     {
         return from;
     }
+}
+
+float fClamp(float input, float min, float max)
+{
+    asm
+    {
+        "mov  R0, {input}"
+        "mov  R1, {min}"
+        "mov  R2, {max}"
+        "fmax R0, R1"
+        "fmin R0, R2"
+        "mov  {input}, R0"
+    }
+    return input;
 }
 
 #endif

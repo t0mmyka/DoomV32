@@ -58,18 +58,22 @@ void main(void)
     BspBranch   node3;
     BspBranch   node4;
     BspBranch   node5;
+    BspBranch   node6;
+    BspBranch   node7;
 
     int[732] text;
 
     user.xPos =      5.00;
     user.yPos =      5.00;
-    user.zPos =     16.00;
+    user.zPos =      9.00;
     user.xSpeed =    0.00;
     user.ySpeed =    0.00;
     user.zSpeed =    0.00;
     user.direction = 0.00;
     user.dirSin = sin(user.direction);
     user.dirCos = cos(user.direction);
+    user.height =   10.00;
+    user.camZ   =    8.00;
 
     wallTexture.textureID = 1;
     wallTexture.width  = 32;
@@ -340,6 +344,7 @@ void main(void)
     rootNode.leftNode   = &node1;
     rootNode.parentNode = NULL;
     rootNode.leaf       = NULL;
+    rootNode.sector     = &Room0;
 
     node0.Name       = "node0";
     node0.HyperX     = NULL;
@@ -352,6 +357,7 @@ void main(void)
     node0.leftNode   = NULL;
     node0.parentNode = &rootNode;
     node0.leaf       = &leaf0;
+    node0.sector     = &Room0;
 
     node1.Name       = "node1";
     node1.HyperX     =   51.2;
@@ -364,6 +370,7 @@ void main(void)
     node1.leftNode   = &node3;
     node1.parentNode = &rootNode;
     node1.leaf       = NULL;
+    node1.sector     = &Room0;
 
     node2.Name       = "node2";
     node2.HyperX     = NULL;
@@ -376,6 +383,7 @@ void main(void)
     node2.leftNode   = NULL;
     node2.parentNode = &node1;
     node2.leaf       = &leaf1;
+    node2.sector     = &Room0;
 
     node3.Name       = "node3";
     node3.HyperX     =   32.0;
@@ -388,6 +396,7 @@ void main(void)
     node3.leftNode   = &node5;
     node3.parentNode = &node1;
     node3.leaf       = NULL;
+    node3.sector     = &Room0;
 
     node4.Name       = "node4";
     node4.HyperX     = NULL;
@@ -400,38 +409,59 @@ void main(void)
     node4.leftNode   = NULL;
     node4.parentNode = &node3;
     node4.leaf       = &leaf2;
+    node4.sector     = &Room0;
 
     node5.Name       = "node5";
-    node5.HyperX     = NULL;
-    node5.HyperY     = NULL;
-    node5.HyperDx    = NULL;
-    node5.HyperDy    = NULL;
+    node5.HyperX     =   57.6;
+    node5.HyperY     =   83.2;
+    node5.HyperDx    =  -25.6;
+    node5.HyperDy    =  -19.2;
     node5.angle      = atan2(node5.HyperDy, node5.HyperDx);
     node5.BranchSide = LEFT;
-    node5.rightNode  = NULL;
-    node5.leftNode   = NULL;
+    node5.rightNode  = &node6;
+    node5.leftNode   = &node7;
     node5.parentNode = &node3;
     node5.leaf       = &leaf3;
+    node5.sector     = &Room0;
+
+    node6.Name       = "node6";
+    node6.HyperX     = NULL;
+    node6.HyperY     = NULL;
+    node6.HyperDx    = NULL;
+    node6.HyperDy    = NULL;
+    node6.angle      = atan2(node6.HyperDy, node6.HyperDx);
+    node6.BranchSide = RIGHT;
+    node6.rightNode  = NULL;
+    node6.leftNode   = NULL;
+    node6.parentNode = &node5;
+    node6.leaf       = &leaf3;
+    node6.sector     = &Room0;
+
+    node7.Name       = "node7";
+    node7.HyperX     = NULL;
+    node7.HyperY     = NULL;
+    node7.HyperDx    = NULL;
+    node7.HyperDy    = NULL;
+    node7.angle      = atan2(node6.HyperDy, node6.HyperDx);
+    node7.BranchSide = LEFT;
+    node7.rightNode  = NULL;
+    node7.leftNode   = NULL;
+    node7.parentNode = &node5;
+    node7.leaf       = NULL;
+    node7.sector     = &Room1;
 
     while(true)
     {
         clear_screen(color_black);
         drawSkyBox(&plainSky, &user);
 
-        print_at(0,  320, "X:");
-        ftoa(user.xPos, text);
-        print_at(20, 320, text);
-        ftoa(user.yPos, text);
-        print_at(0,  340, "Y:");
-        print_at(20, 340, text);
-
         playerMovement(&user, &rootNode);
 
-        user.zPos =  16.0 + 1.5*sin((float)TIME / 30.0);
+        //user.camZ += 0.05 * sin((float)TIME / 30.0);
 
         wall3.yOffset = 1.0 + 1.0*sin((float)TIME / 15.0);
-        Room1.floorHeight = 14.0 + 14.0*sin((float)TIME / 120.0);
-        Room1.ceilingHeight = 16.0 + 14.0*sin((float)TIME / 120.0);
+        Room1.floorHeight = 8.0 + 8.0*sin((float)TIME / 120.0);
+        Room1.ceilingHeight = 22.0 + 8.0*sin((float)TIME / 120.0);
         Room2.floorHeight = 2.0 + 5.0*sin((float)TIME / 60.0);
         Room2.ceilingHeight = 28.0 + 5.0*sin((float)TIME / 55.0);
         wall8.xOffset = 128.0 + 128.0*sin((float)TIME / 360.0);
@@ -443,11 +473,29 @@ void main(void)
 
         drawClip = cleanBuffer;
 
+        ftoa(user.xPos, text);
+        print_at(10,  320, "X:");
+        print_at(30,  320, text);
+        ftoa(user.yPos, text);
+        print_at(140, 320, "Y:");
+        print_at(160, 320, text);
+        ftoa(user.zPos, text);
+        print_at(270, 320, "Z:");
+        print_at(290, 320, text);
+
+        ftoa(user.xSpeed, text);
+        print_at(0,   340, "dX:");
+        print_at(30,  340, text);
+        ftoa(user.ySpeed, text);
+        print_at(130, 340, "dY:");
+        print_at(160, 340, text);
+        ftoa(user.zSpeed, text);
+        print_at(260, 340, "dZ:");
+        print_at(290, 340, text);
+
         inputWait();
-        if(gamepad_button_l() < 0 || gamepad_button_r() == 1)
-        {
-            TIME++;
-        }
+
+        TIME++;
 
         //asm{"call _debugregs"}
         end_frame();
