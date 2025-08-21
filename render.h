@@ -999,15 +999,15 @@ void drawPortal(
         "fgt  R0,  R3"
         "jt   R0,  _Ptop_offscreen"
 
+        //Set X drawing point
+        "out  GPU_DrawingPointX,  R11"
+
         //Check if bottom is above screen
         "mov  R0,  R9"
         "mov  R2,  [R13]"
         "cif  R2"
         "flt  R0,  R2"
         "jt   R0,  _Pbottom_offsecreen"
-
-        //Set X drawing point
-        "out  GPU_DrawingPointX,  R11"
 
         //Determine currentTextureX
         "mov  R0,  R4"
@@ -1285,6 +1285,33 @@ void drawPortal(
         "_Pbottom_offsecreen:"
         "mov  [R1], R0"
 
+        //Select floor settings
+        "in   R0,  GPU_SelectedTexture"
+        "out  GPU_SelectedTexture, -1"
+        "out  GPU_SelectedRegion, 256"
+        "mov  R1,  {floorColor}"
+        "out  GPU_MultiplyColor, R1"
+
+        //Get floor height
+        "mov  R1,  R12"
+        "cif  R1"
+        "fsub R1,  R2"
+        "ceil R1"
+        "out  GPU_DrawingScaleY, R1"
+
+        //Draw floor
+        "mov  R1,  R2"
+        "cfi  R1"
+        "out  GPU_DrawingPointY, R1"
+        "out  GPU_Command, GPUCommand_DrawRegionZoomed"
+
+        //Reset settings
+        "out  GPU_MultiplyColor, 0xFFFFFFFF"
+        "mov  R0,  {textureBottom}"
+        "out  GPU_SelectedTexture, R0"
+        "out  GPU_SelectedRegion, 0"
+
+
         // Go to next full clipping
         "_Ptop_offscreen:"
         "iadd R13, 1"
@@ -1350,6 +1377,9 @@ void drawPortal(
         "mov  R12, [R13]"
         "iadd R13, 1"
 
+        //Set X drawing point
+        "out  GPU_DrawingPointX,  R11"
+
         //Check if top is below screen
         "mov  R0,  R10"
         "mov  R3,  R12"
@@ -1363,9 +1393,6 @@ void drawPortal(
         "cif  R1"
         "flt  R0,  R1"
         "jt   R0,  _PTbottom_offsecreen"
-
-        //Set X drawing point
-        "out  GPU_DrawingPointX,  R11"
 
         //Determine currentTextureX
         "mov  R0,  R4"
@@ -1641,6 +1668,30 @@ void drawPortal(
         // Set fast clipping true
         "_PTtop_offscreen:"
         "mov  [R1], R0"
+
+        //Select ceiling settings
+        "in   R0,  GPU_SelectedTexture"
+        "out  GPU_SelectedTexture, -1"
+        "out  GPU_SelectedRegion, 256"
+        "mov  R2,  {ceilingColor}"
+        "out  GPU_MultiplyColor, R2"
+
+        //Get ceiling height
+        "mov  R1,  [R13]"
+        "isub R12, R1"
+        "cif  R12"
+        "out  GPU_DrawingScaleY, R12"
+
+        //Draw ceiling
+        "out  GPU_DrawingPointY, R1"
+        "out  GPU_Command, GPUCommand_DrawRegionZoomed"
+
+        //Reset settings
+        "out  GPU_MultiplyColor, 0xFFFFFFFF"
+        "mov  R0,  {textureTop}"
+        "out  GPU_SelectedTexture, R0"
+        "out  GPU_SelectedRegion, 0"
+
 
         // Go to next full clipping
         "_PTbottom_offsecreen:"
@@ -2665,15 +2716,15 @@ void drawPortalBottom(WallDrawData* data)
         "fgt  R0,  R3"
         "jt   R0,  _Btop_offscreen"
 
+        //Set X drawing point
+        "out  GPU_DrawingPointX,  R11"
+
         //Check if bottom is above screen
         "mov  R0,  R9"
         "mov  R2,  [R13]"
         "cif  R2"
         "flt  R0,  R2"
         "jt   R0,  _Bbottom_offsecreen"
-
-        //Set X drawing point
-        "out  GPU_DrawingPointX,  R11"
 
         //Determine currentTextureX
         "mov  R0,  R4"
@@ -2951,6 +3002,32 @@ void drawPortalBottom(WallDrawData* data)
         "_Bbottom_offsecreen:"
         "mov  [R1], R0"
 
+
+        //Select floor settings
+        "in   R0,  GPU_SelectedTexture"
+        "out  GPU_SelectedTexture, -1"
+        "out  GPU_SelectedRegion, 256"
+        "mov  R1,  {floorColor}"
+        "out  GPU_MultiplyColor, R1"
+
+        //Get floor height
+        "mov  R2,  R12"
+        "mov  R1,  [R13]"
+        "isub R2,  R1"
+        "cif  R2"
+        "out  GPU_DrawingScaleY, R2"
+
+        //Draw floor
+        "out  GPU_DrawingPointY, R1"
+        "out  GPU_Command, GPUCommand_DrawRegionZoomed"
+
+        //Reset settings
+        "out  GPU_MultiplyColor, 0xFFFFFFFF"
+        "mov  R0,  {textureNUM}"
+        "out  GPU_SelectedTexture, R0"
+        "out  GPU_SelectedRegion, 0"
+
+
         // Go to next full clipping
         "_Btop_offscreen:"
         "iadd R13, 1"
@@ -3093,6 +3170,9 @@ void drawPortalTop(WallDrawData* data)
         "mov  R0,   [R1]"
         "jt   R0,   _Twall_while_loop_iterators_add"
 
+        //Set X drawing point
+        "out  GPU_DrawingPointX,  R11"
+
         //Get bottom clipping
         "mov  R12, [R13]"
         "iadd R13, 1"
@@ -3110,9 +3190,6 @@ void drawPortalTop(WallDrawData* data)
         "cif  R1"
         "flt  R0,  R1"
         "jt   R0,  _Tbottom_offsecreen"
-
-        //Set X drawing point
-        "out  GPU_DrawingPointX,  R11"
 
         //Determine currentTextureX
         "mov  R0,  R4"
@@ -3387,6 +3464,32 @@ void drawPortalTop(WallDrawData* data)
 
         // Set fast clipping true
         "_Ttop_offscreen:"
+
+        //Select ceiling settings
+        "in   R0,  GPU_SelectedTexture"
+        "out  GPU_SelectedTexture, -1"
+        "out  GPU_SelectedRegion, 256"
+        "mov  R2,  {ceilingColor}"
+        "out  GPU_MultiplyColor, R2"
+
+        //Get ceiling height
+        "mov  R2,  R12"
+        "mov  R1,  [R13]"
+        "isub R2,  R1"
+        "cif  R2"
+        "out  GPU_DrawingScaleY, R2"
+
+        //Draw ceiling
+        "out  GPU_DrawingPointY, R1"
+        "out  GPU_Command, GPUCommand_DrawRegionZoomed"
+
+        //Reset settings
+        "out  GPU_MultiplyColor, 0xFFFFFFFF"
+        "mov  R0,  {textureNUM}"
+        "out  GPU_SelectedTexture, R0"
+        "out  GPU_SelectedRegion, 0"
+
+
         "mov  [R1], R0"
 
         // Go to next full clipping
