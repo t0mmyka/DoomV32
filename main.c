@@ -18,6 +18,9 @@ void main(void)
     int     iTest;
     void*   pTest;
 
+    bool  showMap  = false;
+    float mapScale = 1.0;
+
     int         TIME;
     Player      user;
     Texture     wallTexture;
@@ -452,26 +455,44 @@ void main(void)
 
     while(true)
     {
+        if(gamepad_button_start() == 1)
+            showMap = !showMap;
+
         clear_screen(color_black);
-        drawSkyBox(&plainSky, &user);
+        if(!showMap)
+          drawSkyBox(&plainSky, &user);
 
         playerMovement(&user, &rootNode);
 
         //user.camZ += 0.05 * sin((float)TIME / 30.0);
 
-        wall3.yOffset = 1.0 + 1.0*sin((float)TIME / 15.0);
-        Room1.floorHeight = 8.0 + 8.0*sin((float)TIME / 120.0);
-        Room1.ceilingHeight = 22.0 + 8.0*sin((float)TIME / 120.0);
-        Room2.floorHeight = 2.0 + 5.0*sin((float)TIME / 60.0);
-        Room2.ceilingHeight = 28.0 + 5.0*sin((float)TIME / 55.0);
-        wall8.xOffset = 128.0 + 128.0*sin((float)TIME / 360.0);
+        wall3.yOffset       = 1.0   +   1.0*sin((float)TIME / 15.0);
+        Room1.floorHeight   = 8.0   +   8.0*sin((float)TIME / 120.0);
+        Room1.ceilingHeight = 22.0  +   8.0*sin((float)TIME / 120.0);
+        Room2.floorHeight   = 2.0   +   5.0*sin((float)TIME / 60.0);
+        Room2.ceilingHeight = 28.0  +   5.0*sin((float)TIME / 55.0);
+        wall8.xOffset       = 128.0 + 128.0*sin((float)TIME / 360.0);
 
-        bspRender(filledFastClipping, &drawClip, &rootNode, &user);
-        //bspRender(filledFastClipping, &drawClip, &node5, &user);
-        //drawSegment(&drawClip, &testwall1, &user);
-        //drawSegment(&drawClip, &testwall2, &user);
+        if(!showMap)
+        {
+            bspRender(filledFastClipping, &drawClip, &rootNode, &user);
+            drawClip = cleanBuffer;
+        }
+        else
+        {
+            if(gamepad_button_x() > 0)
+            {
+                mapScale *= 1.01;
+            }
 
-        drawClip = cleanBuffer;
+            if(gamepad_button_y() > 0)
+            {
+                mapScale /= 1.01;
+            }
+
+            mapRender(&rootNode, &user, mapScale);
+        }
+
 
         ftoa(user.xPos, text);
         print_at(10,  320, "X:");
@@ -493,11 +514,8 @@ void main(void)
         print_at(260, 340, "dZ:");
         print_at(290, 340, text);
 
-        inputWait();
-
         TIME++;
 
-        //asm{"call _debugregs"}
         end_frame();
     }
 

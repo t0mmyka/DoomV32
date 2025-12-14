@@ -4419,6 +4419,182 @@ void drawSegment(FrameBuffer* clipping, Segment* seg, Player* pov)
 }
 
 
+void drawMapSegment(Segment* seg, Player* pov, float scale)
+{
+    float scaleFactor;
+    float povX;
+    float povY;
+    float segStartX;
+    float segStartY;
+    float segDeltaX;
+    float segDeltaY;
+    float segEndX;
+    float segEndY;
+    float drawX;
+    float drawY;
+    float drawDX;
+    float drawDY;
+    float endX;
+    float endY;
+    float topInt;
+    float bottomInt;
+    float leftInt;
+    float rightInt;
+    float length;
+    float tmp;
+
+
+    //Map scalling
+    scaleFactor = scale;
+
+    povX = pov->xPos;
+    povY = pov->yPos;
+
+    segStartX =  seg->xPos - pov->xPos;
+    segStartY = -seg->yPos + pov->yPos;
+
+    segDeltaX =  seg->dx;
+    segDeltaY = -seg->dy;
+
+    segEndX   = segStartX + segDeltaX;
+    segEndY   = segStartY + segDeltaY;
+
+    //Rotate points
+    drawX = pov->dirSin * segStartX + pov->dirCos * segStartY;
+    drawY = pov->dirSin * segStartY - pov->dirCos * segStartX;
+
+    drawDX = pov->dirSin * segDeltaX + pov->dirCos * segDeltaY;
+    drawDY = pov->dirSin * segDeltaY - pov->dirCos * segDeltaX;
+
+    //Scale points
+    drawX *= scaleFactor;
+    drawY *= scaleFactor;
+    drawDX *= scaleFactor;
+    drawDY *= scaleFactor;
+
+    //Center points
+    drawX += SCREENCENTERX;
+    drawY += SCREENCENTERY;
+
+    endX = drawX + drawDX;
+    endY = drawY + drawDY;
+
+    //Offscreen clipping
+    if(drawX < 0 && endX < 0) //left screen clip
+    {
+        return;
+    }
+    else if(drawX > SCREENWIDTH && endX > SCREENWIDTH) //right screen clip
+    {
+        return;
+    }
+    else if(drawY < 0 && endY < 0) //Above screen clip
+    {
+        return;
+    }
+    else if(drawY > SCREENHEIGHT && endY > SCREENHEIGHT) //below screen clip
+    {
+        return;
+    }
+
+    if(drawDX != 0.0)
+    {
+        if(drawX < 0 || endX < 0)
+        {
+            leftInt = -(drawDY / drawDX) * drawX + drawY;
+        }
+
+        if(drawX > SCREENWIDTH || endX > SCREENWIDTH)
+        {
+            rightInt = -(drawDY / drawDX) * (drawX - SCREENWIDTH) + drawY;
+        }
+    }
+
+    if(drawDY != 0.0)
+    {
+        if(drawY < 0 || endY < 0)
+        {
+            topInt = -(drawDX / drawDY) * drawY + drawX;
+        }
+
+        if(drawY > SCREENHEIGHT || endY > SCREENHEIGHT)
+        {
+            bottomInt = -(drawDX / drawDY) * (drawY - SCREENHEIGHT) + drawX;
+        }
+    }
+
+    if(drawX < 0)
+    {
+        drawX = 0;
+        drawY = leftInt;
+    }
+
+    if(drawX > SCREENWIDTH)
+    {
+        drawX = SCREENWIDTH;
+        drawY = rightInt;
+    }
+
+    if(drawY < 0)
+    {
+        drawY = 0;
+        drawX = topInt;
+    }
+
+    if(drawY > SCREENHEIGHT)
+    {
+        drawY = SCREENHEIGHT;
+        drawX = bottomInt;
+    }
+
+    if(endX < 0)
+    {
+        endX = 0;
+        endY = leftInt;
+    }
+
+    if(endX > SCREENWIDTH)
+    {
+        endX = SCREENWIDTH;
+        endY = rightInt;
+    }
+
+    if(endY < 0)
+    {
+        endY = 0;
+        endX = topInt;
+    }
+
+    if(endY > SCREENHEIGHT)
+    {
+        endY = SCREENHEIGHT;
+        endX = bottomInt;
+    }
+
+
+
+    //Create line
+    tmp     = endX - drawX;
+    length  = tmp  * tmp;
+    tmp     = endY - drawY;
+    length += tmp  * tmp;
+    length  = sqrt(length);
+    set_drawing_scale(length, 1.0);
+    set_drawing_angle(atan2(segDeltaY, segDeltaX) + pov->direction - PIo2);
+
+    //Color line
+    set_multiply_color(color_white);
+
+    if(seg->isPortal)
+      set_multiply_color(color_orange);
+
+    if(seg->isSkyBox)
+      set_multiply_color(color_blue);
+
+    draw_region_rotozoomed_at(drawX, drawY);
+}
+
+
 void drawBspLeaf(FrameBuffer* clipping, BspLeaf* leaf, Player* pov)
 {
     int      segSize = sizeof(Segment*);
@@ -4430,6 +4606,59 @@ void drawBspLeaf(FrameBuffer* clipping, BspLeaf* leaf, Player* pov)
     }
 
     return;
+}
+
+
+void drawBspLeafMap(BspLeaf* leaf, Player* pov, float scale)
+{
+    int      segSize = sizeof(Segment*);
+    Segment** segList = leaf->segList;
+    while(*segList != NULL)
+    {
+        drawMapSegment(*segList, pov, scale);
+        segList += segSize;
+    }
+
+    return;
+}
+
+
+void mapBspRender(BspBranch* currentNode, Player* pov, float scale)
+{
+    float xPos = pov->xPos;
+    float yPos = pov->yPos;
+
+    if(currentNode->leaf != NULL)
+    {
+        drawBspLeafMap(currentNode->leaf, pov, scale);
+    }
+
+    if(currentNode->leftNode != NULL)
+    {
+        mapBspRender(currentNode->leftNode, pov, scale);
+    }
+
+    if(currentNode->rightNode != NULL)
+    {
+        mapBspRender(currentNode->rightNode, pov, scale);
+    }
+
+    return;
+}
+
+
+void mapRender(BspBranch* map, Player* pov, float scale)
+{
+    select_texture(-1);
+    select_region(256);
+
+    mapBspRender(map, pov, scale);
+
+    set_multiply_color(color_magenta);
+
+    draw_region_at(SCREENCENTERX - 1, SCREENCENTERY - 1);
+
+    set_multiply_color(color_white);
 }
 
 
