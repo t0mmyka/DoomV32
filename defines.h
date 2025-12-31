@@ -4,10 +4,18 @@
 #define INTSIZE   sizeof(int)
 #define FLOATSIZE sizeof(float)
 
-#define SCREENWIDTH   640
-#define SCREENCENTERX 320.0
-#define SCREENHEIGHT  320
-#define SCREENCENTERY 160.0
+#define SCREENWIDTH   300
+#define SCREENHEIGHT  300
+#define SCREENXPOS    170
+#define SCREENYPOS    30
+
+#define SCREENRATIO   SCREENWIDTH / SCREENHEIGHT
+
+#define MAPWIDTH      170
+#define MAPHEIGHT     170
+#define MAPXPOS       0
+#define MAPYPOS       95
+
 
 #define MOVEPADDING 0.05
 #define MOVERATIO   0.5
@@ -36,7 +44,7 @@ void func()
 {
     asm
     {
-        "%define SCREENWIDTH  640"
+        "%define SCREENWIDTH  600"
         "%define SCREENHEIGHT 320"
         "%define INF    0x7F800000"
         "%define NEGINF 0xFF800000"

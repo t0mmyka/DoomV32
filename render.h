@@ -31,6 +31,7 @@ struct WallDrawData
     int          textureID;
 };
 
+
 int mipMapGeometric(int width, int level)
 {
     int add = width;
@@ -47,7 +48,7 @@ int mipMapGeometric(int width, int level)
 }
 
 
-void drawPortalClip(WallDrawData* data)
+void drawPortalClip(WallDrawData* data, int xPos, int yPos, int width, int height)
 {
     float        xStart        = data->xStart;
     float        xEnd          = data->xEnd;
@@ -60,8 +61,10 @@ void drawPortalClip(WallDrawData* data)
     int          floorColor    = data->floorColor;
     int          ceilingColor  = data->ceilingColor;
 
-    int   columnStart = min(floor((yStart/xStart - 1.0) * -320.0), 639);
-    int   columnEnd   = min(floor((yEnd/xEnd - 1.0) * -320.0), 639);
+    int   columnStart  = min(floor(width * (1.0 - yStart/xStart) / 2.0), width - 1);
+          columnStart += xPos;
+    int   columnEnd    = min(floor(width * (1.0 - yEnd/xEnd) / 2.0), width - 1);
+          columnEnd   += xPos;
 
     float onScreenWidth = (float)(columnEnd - columnStart);
     if(onScreenWidth == 0.0)
@@ -69,17 +72,17 @@ void drawPortalClip(WallDrawData* data)
         return;
     }
 
-    float topStart    =  SCREENCENTERY
-                      - (SCREENHEIGHT * (zTop    - zPos) / xStart);
+    float topStart    = ((1.0 - SCREENRATIO * (zTop - zPos) / xStart) / 2.0);
+          topStart    = (float)height * topStart + (float)yPos;
 
-    float topEnd      = SCREENCENTERY
-                      - (SCREENHEIGHT * (zTop    - zPos) / xEnd);
+    float topEnd      = ((1.0 - SCREENRATIO * (zTop - zPos) / xEnd) / 2.0);
+          topEnd      = (float)height * topEnd + (float)yPos;
 
-    float bottomStart =  SCREENCENTERY
-                      - (SCREENHEIGHT * (zBottom - zPos) / xStart);
+    float bottomStart = ((1.0 - SCREENRATIO * (zBottom - zPos) / xStart) / 2.0);
+          bottomStart = (float)height * bottomStart + (float)yPos;
 
-    float bottomEnd   = SCREENCENTERY
-                      - (SCREENHEIGHT * (zBottom - zPos) / xEnd);
+    float bottomEnd   = ((1.0 - SCREENRATIO * (zBottom - zPos) / xEnd) / 2.0);
+          bottomEnd   = (float)height * bottomEnd + (float)yPos;
 
     float currentTop = topStart;
     float topStep    = (topEnd - topStart) / onScreenWidth;
@@ -88,8 +91,8 @@ void drawPortalClip(WallDrawData* data)
     float bottomStep    = (bottomEnd - bottomStart) / onScreenWidth;
 
 
-    int*  fullClippingPointer = &(clipping->full[columnStart*2]);
-    int*  fastClippingPointer = &(clipping->fast[columnStart]);
+    int*  fullClippingPointer = &(clipping->full[(columnStart - xPos)*2]);
+    int*  fastClippingPointer = &(clipping->fast[columnStart - xPos]);
 
 
     select_texture(-1);
@@ -214,7 +217,7 @@ void drawPortalClip(WallDrawData* data)
 
 
 
-void drawPortalClipSkyBox(WallDrawData* data)
+void drawPortalClipSkyBox(WallDrawData* data, int xPos, int yPos, int width, int height)
 {
     float        xStart        = data->xStart;
     float        xEnd          = data->xEnd;
@@ -227,8 +230,10 @@ void drawPortalClipSkyBox(WallDrawData* data)
     int          floorColor    = data->floorColor;
     int          ceilingColor  = data->ceilingColor;
 
-    int   columnStart = min(floor((yStart/xStart - 1.0) * -320.0), 639);
-    int   columnEnd   = min(floor((yEnd/xEnd - 1.0) * -320.0), 639);
+    int   columnStart  = min(floor(width * (1.0 - yStart/xStart) / 2.0), width - 1);
+          columnStart += xPos;
+    int   columnEnd    = min(floor(width * (1.0 - yEnd/xEnd) / 2.0), width - 1);
+          columnEnd   += xPos;
 
     float onScreenWidth = (float)(columnEnd - columnStart);
     if(onScreenWidth == 0.0)
@@ -236,17 +241,17 @@ void drawPortalClipSkyBox(WallDrawData* data)
         return;
     }
 
-    float topStart    =  SCREENCENTERY
-                      - (SCREENHEIGHT * (zTop    - zPos) / xStart);
+    float topStart    = ((1.0 - SCREENRATIO * (zTop - zPos) / xStart) / 2.0);
+          topStart    = (float)height * topStart + (float)yPos;
 
-    float topEnd      = SCREENCENTERY
-                      - (SCREENHEIGHT * (zTop    - zPos) / xEnd);
+    float topEnd      = ((1.0 - SCREENRATIO * (zTop - zPos) / xEnd) / 2.0);
+          topEnd      = (float)height * topEnd + (float)yPos;
 
-    float bottomStart =  SCREENCENTERY
-                      - (SCREENHEIGHT * (zBottom - zPos) / xStart);
+    float bottomStart = ((1.0 - SCREENRATIO * (zBottom - zPos) / xStart) / 2.0);
+          bottomStart = (float)height * bottomStart + (float)yPos;
 
-    float bottomEnd   = SCREENCENTERY
-                      - (SCREENHEIGHT * (zBottom - zPos) / xEnd);
+    float bottomEnd   = ((1.0 - SCREENRATIO * (zBottom - zPos) / xEnd) / 2.0);
+          bottomEnd   = (float)height * bottomEnd + (float)yPos;
 
     float currentTop = topStart;
     float topStep    = (topEnd - topStart) / onScreenWidth;
@@ -255,8 +260,8 @@ void drawPortalClipSkyBox(WallDrawData* data)
     float bottomStep    = (bottomEnd - bottomStart) / onScreenWidth;
 
 
-    int*  fullClippingPointer = &(clipping->full[columnStart*2]);
-    int*  fastClippingPointer = &(clipping->fast[columnStart]);
+    int*  fullClippingPointer = &(clipping->full[(columnStart - xPos)*2]);
+    int*  fastClippingPointer = &(clipping->fast[columnStart - xPos]);
 
 
     select_texture(-1);
@@ -377,7 +382,7 @@ void drawPortalClipSkyBox(WallDrawData* data)
 
 
 
-void drawPortalClipBottom(WallDrawData* data)
+void drawPortalClipBottom(WallDrawData* data, int xPos, int yPos, int width, int height)
 {
     float        xStart        = data->xStart;
     float        xEnd          = data->xEnd;
@@ -388,8 +393,10 @@ void drawPortalClipBottom(WallDrawData* data)
     FrameBuffer* clipping      = data->clipping;
     int          floorColor    = data->floorColor;
 
-    int   columnStart = min(floor((yStart/xStart - 1.0) * -320.0), 639);
-    int   columnEnd   = min(floor((yEnd/xEnd - 1.0) * -320.0), 639);
+    int   columnStart  = min(floor(width * (1.0 - yStart/xStart) / 2.0), width - 1);
+          columnStart += xPos;
+    int   columnEnd    = min(floor(width * (1.0 - yEnd/xEnd) / 2.0), width - 1);
+          columnEnd   += xPos;
 
     float onScreenWidth = (float)(columnEnd - columnStart);
     if(onScreenWidth == 0.0)
@@ -397,18 +404,18 @@ void drawPortalClipBottom(WallDrawData* data)
         return;
     }
 
-    float bottomStart =  SCREENCENTERY
-                      - (SCREENHEIGHT * (zBottom - zPos) / xStart);
+    float bottomStart = ((1.0 - SCREENRATIO * (zBottom - zPos) / xStart) / 2.0);
+          bottomStart = (float)height * bottomStart + (float)yPos;
 
-    float bottomEnd   = SCREENCENTERY
-                      - (SCREENHEIGHT * (zBottom - zPos) / xEnd);
+    float bottomEnd   = ((1.0 - SCREENRATIO * (zBottom - zPos) / xEnd) / 2.0);
+          bottomEnd   = (float)height * bottomEnd + (float)yPos;
 
     float currentBottom = bottomStart;
     float bottomStep    = (bottomEnd - bottomStart) / onScreenWidth;
 
 
-    int*  fullClippingPointer = &(clipping->full[columnStart*2]);
-    int*  fastClippingPointer = &(clipping->fast[columnStart]);
+    int*  fullClippingPointer = &(clipping->full[(columnStart - xPos)*2]);
+    int*  fastClippingPointer = &(clipping->fast[columnStart - xPos]);
 
 
     select_texture(-1);
@@ -503,7 +510,7 @@ void drawPortalClipBottom(WallDrawData* data)
 
 
 
-void drawPortalClipBottomSkyBox(WallDrawData* data)
+void drawPortalClipBottomSkyBox(WallDrawData* data, int xPos, int yPos, int width, int height)
 {
     float        xStart        = data->xStart;
     float        xEnd          = data->xEnd;
@@ -514,8 +521,10 @@ void drawPortalClipBottomSkyBox(WallDrawData* data)
     FrameBuffer* clipping      = data->clipping;
     int          floorColor    = data->floorColor;
 
-    int   columnStart = min(floor((yStart/xStart - 1.0) * -320.0), 639);
-    int   columnEnd   = min(floor((yEnd/xEnd - 1.0) * -320.0), 639);
+    int   columnStart  = min(floor(width * (1.0 - yStart/xStart) / 2.0), width - 1);
+          columnStart += xPos;
+    int   columnEnd    = min(floor(width * (1.0 - yEnd/xEnd) / 2.0), width - 1);
+          columnEnd   += xPos;
 
     float onScreenWidth = (float)(columnEnd - columnStart);
     if(onScreenWidth == 0.0)
@@ -523,18 +532,18 @@ void drawPortalClipBottomSkyBox(WallDrawData* data)
         return;
     }
 
-    float bottomStart =  SCREENCENTERY
-                      - (SCREENHEIGHT * (zBottom - zPos) / xStart);
+    float bottomStart = ((1.0 - SCREENRATIO * (zBottom - zPos) / xStart) / 2.0);
+          bottomStart = (float)height * bottomStart + (float)yPos;
 
-    float bottomEnd   = SCREENCENTERY
-                      - (SCREENHEIGHT * (zBottom - zPos) / xEnd);
+    float bottomEnd   = ((1.0 - SCREENRATIO * (zBottom - zPos) / xEnd) / 2.0);
+          bottomEnd   = (float)height * bottomEnd + (float)yPos;
 
     float currentBottom = bottomStart;
     float bottomStep    = (bottomEnd - bottomStart) / onScreenWidth;
 
 
-    int*  fullClippingPointer = &(clipping->full[columnStart*2]);
-    int*  fastClippingPointer = &(clipping->fast[columnStart]);
+    int*  fullClippingPointer = &(clipping->full[(columnStart - xPos)*2]);
+    int*  fastClippingPointer = &(clipping->fast[columnStart - xPos]);
 
 
     select_texture(-1);
@@ -620,7 +629,7 @@ void drawPortalClipBottomSkyBox(WallDrawData* data)
 
 
 
-void drawPortalClipTop(WallDrawData* data)
+void drawPortalClipTop(WallDrawData* data, int xPos, int yPos, int width, int height)
 {
     float        xStart        = data->xStart;
     float        xEnd          = data->xEnd;
@@ -631,8 +640,10 @@ void drawPortalClipTop(WallDrawData* data)
     FrameBuffer* clipping      = data->clipping;
     int          ceilingColor  = data->ceilingColor;
 
-    int   columnStart = min(floor((yStart/xStart - 1.0) * -320.0), 639);
-    int   columnEnd   = min(floor((yEnd/xEnd - 1.0) * -320.0), 639);
+    int   columnStart  = min(floor(width * (1.0 - yStart/xStart) / 2.0), width - 1);
+          columnStart += xPos;
+    int   columnEnd    = min(floor(width * (1.0 - yEnd/xEnd) / 2.0), width - 1);
+          columnEnd   += xPos;
 
     float onScreenWidth = (float)(columnEnd - columnStart);
     if(onScreenWidth == 0.0)
@@ -640,17 +651,17 @@ void drawPortalClipTop(WallDrawData* data)
         return;
     }
 
-    float topStart    =  SCREENCENTERY
-                      - (SCREENHEIGHT * (zTop    - zPos) / xStart);
+    float topStart    = ((1.0 - SCREENRATIO * (zTop - zPos) / xStart) / 2.0);
+          topStart    = (float)height * topStart + (float)yPos;
 
-    float topEnd      = SCREENCENTERY
-                      - (SCREENHEIGHT * (zTop    - zPos) / xEnd);
+    float topEnd      = ((1.0 - SCREENRATIO * (zTop - zPos) / xEnd) / 2.0);
+          topEnd      = (float)height * topEnd + (float)yPos;
 
     float currentTop = topStart;
     float topStep    = (topEnd - topStart) / onScreenWidth;
 
-    int*  fullClippingPointer = &(clipping->full[columnStart*2]);
-    int*  fastClippingPointer = &(clipping->fast[columnStart]);
+    int*  fullClippingPointer = &(clipping->full[(columnStart - xPos)*2]);
+    int*  fastClippingPointer = &(clipping->fast[columnStart - xPos]);
 
 
     select_texture(-1);
@@ -743,7 +754,7 @@ void drawPortalClipTop(WallDrawData* data)
 }
 
 
-void drawPortalClipTopSkyBox(WallDrawData* data)
+void drawPortalClipTopSkyBox(WallDrawData* data, int xPos, int yPos, int width, int height)
 {
     float        xStart        = data->xStart;
     float        xEnd          = data->xEnd;
@@ -754,8 +765,10 @@ void drawPortalClipTopSkyBox(WallDrawData* data)
     FrameBuffer* clipping      = data->clipping;
     int          ceilingColor  = data->ceilingColor;
 
-    int   columnStart = min(floor((yStart/xStart - 1.0) * -320.0), 639);
-    int   columnEnd   = min(floor((yEnd/xEnd - 1.0) * -320.0), 639);
+    int   columnStart  = min(floor(width * (1.0 - yStart/xStart) / 2.0), width - 1);
+          columnStart += xPos;
+    int   columnEnd    = min(floor(width * (1.0 - yEnd/xEnd) / 2.0), width - 1);
+          columnEnd   += xPos;
 
     float onScreenWidth = (float)(columnEnd - columnStart);
     if(onScreenWidth == 0.0)
@@ -763,17 +776,17 @@ void drawPortalClipTopSkyBox(WallDrawData* data)
         return;
     }
 
-    float topStart    =  SCREENCENTERY
-                      - (SCREENHEIGHT * (zTop    - zPos) / xStart);
+    float topStart    = ((1.0 - SCREENRATIO * (zTop - zPos) / xStart) / 2.0);
+          topStart    = (float)height * topStart + (float)yPos;
 
-    float topEnd      = SCREENCENTERY
-                      - (SCREENHEIGHT * (zTop    - zPos) / xEnd);
+    float topEnd      = ((1.0 - SCREENRATIO * (zTop - zPos) / xEnd) / 2.0);
+          topEnd      = (float)height * topEnd + (float)yPos;
 
     float currentTop = topStart;
     float topStep    = (topEnd - topStart) / onScreenWidth;
 
-    int*  fullClippingPointer = &(clipping->full[columnStart*2]);
-    int*  fastClippingPointer = &(clipping->fast[columnStart]);
+    int*  fullClippingPointer = &(clipping->full[(columnStart - xPos)*2]);
+    int*  fastClippingPointer = &(clipping->fast[columnStart - xPos]);
 
 
     select_texture(-1);
@@ -862,7 +875,11 @@ void drawPortal(
     WallDrawData* data,
     float windowBottomZ,
     float windowTopZ,
-    Texture* upperTexture
+    Texture* upperTexture,
+    int xPos,
+    int yPos,
+    int width,
+    int height
 )
 {
     float xStart              = data->xStart;
@@ -889,8 +906,10 @@ void drawPortal(
     int   textureBottom       = data->textureID;
     int   textureTop          = upperTexture->textureID;
 
-    int   columnStart = min(floor((yStart/xStart - 1.0) * -320.0), 639);
-    int   columnEnd   = min(floor((yEnd/xEnd - 1.0) * -320.0), 639);
+    int   columnStart  = min(floor(width * (1.0 - yStart/xStart) / 2.0), width - 1);
+          columnStart += xPos;
+    int   columnEnd    = min(floor(width * (1.0 - yEnd/xEnd) / 2.0), width - 1);
+          columnEnd   += xPos;
 
     float onScreenWidth = (float)(columnEnd - columnStart);
     if(onScreenWidth <= 0.0)
@@ -898,29 +917,29 @@ void drawPortal(
         return;
     }
 
-    float topStart          =  SCREENCENTERY
-                            - (SCREENHEIGHT * (zTop          - zPos) / xStart);
+    float topStart          = ((1.0 - SCREENRATIO * (zTop - zPos) / xStart) / 2.0);
+          topStart          = (float)height * topStart + (float)yPos;
 
-    float topEnd            = SCREENCENTERY
-                            - (SCREENHEIGHT * (zTop          - zPos) / xEnd);
+    float topEnd            = ((1.0 - SCREENRATIO * (zTop - zPos) / xEnd) / 2.0);
+          topEnd            = (float)height * topEnd + (float)yPos;
 
-    float windowTopStart    =  SCREENCENTERY
-                            - (SCREENHEIGHT * (windowTopZ    - zPos) / xStart);
+    float windowTopStart    = ((1.0 - SCREENRATIO * (windowTopZ - zPos) / xStart) / 2.0);
+          windowTopStart    = (float)height * windowTopStart + (float)yPos;
 
-    float windowTopEnd      = SCREENCENTERY
-                            - (SCREENHEIGHT * (windowTopZ    - zPos) / xEnd);
+    float windowTopEnd      = ((1.0 - SCREENRATIO * (windowTopZ - zPos) / xEnd) / 2.0);
+          windowTopEnd      = (float)height * windowTopEnd + (float)yPos;
 
-    float bottomStart       =  SCREENCENTERY
-                            - (SCREENHEIGHT * (zBottom       - zPos) / xStart);
+    float bottomStart       = ((1.0 - SCREENRATIO * (zBottom - zPos) / xStart) / 2.0);
+          bottomStart       = (float)height * bottomStart + (float)yPos;
 
-    float bottomEnd         = SCREENCENTERY
-                            - (SCREENHEIGHT * (zBottom       - zPos) / xEnd);
+    float bottomEnd         = ((1.0 - SCREENRATIO * (zBottom - zPos) / xEnd) / 2.0);
+          bottomEnd         = (float)height * bottomEnd + (float)yPos;
 
-    float windowBottomStart =  SCREENCENTERY
-                            - (SCREENHEIGHT * (windowBottomZ - zPos) / xStart);
+    float windowBottomStart = ((1.0 - SCREENRATIO * (windowBottomZ - zPos) / xStart) / 2.0);
+          windowBottomStart = (float)height * windowBottomStart + (float)yPos;
 
-    float windowBottomEnd   = SCREENCENTERY
-                            - (SCREENHEIGHT * (windowBottomZ - zPos) / xEnd);
+    float windowBottomEnd   = ((1.0 - SCREENRATIO * (windowBottomZ - zPos) / xEnd) / 2.0);
+          windowBottomEnd   = (float)height * windowBottomEnd + (float)yPos;
 
     float currentTop = topStart;
     float topStep    = (topEnd - topStart) / onScreenWidth;
@@ -951,8 +970,8 @@ void drawPortal(
     float textureTrueWindowTop    = textureTrueTop + topWallHeight;
     float textureTrueBottom       = textureHeightBottom - yOffset;
     float textureTrueWindowBottom = textureTrueBottom - bottomWallHeight;
-    int*  fullClippingPointer = &(fullClipping[columnStart*2]);
-    int*  fastClippingPointer = &(fastClipping[0]);
+    int*  fullClippingPointer = &(fullClipping[(columnStart - xPos)*2]);
+    int*  fastClippingPointer = &(fastClipping[0]) - xPos;
     int   screenTop;
     int   screenBottom;
     int   screenFullTop;
@@ -1737,7 +1756,11 @@ void drawPortalSkyBox(
     WallDrawData* data,
     float windowBottomZ,
     float windowTopZ,
-    Texture* upperTexture
+    Texture* upperTexture,
+    int xPos,
+    int yPos,
+    int width,
+    int height
 )
 {
     float xStart              = data->xStart;
@@ -1764,8 +1787,10 @@ void drawPortalSkyBox(
     int   textureBottom       = data->textureID;
     int   textureTop          = upperTexture->textureID;
 
-    int   columnStart = min(floor((yStart/xStart - 1.0) * -320.0), 639);
-    int   columnEnd   = min(floor((yEnd/xEnd - 1.0) * -320.0), 639);
+    int   columnStart  = min(floor(width * (1.0 - yStart/xStart) / 2.0), width - 1);
+          columnStart += xPos;
+    int   columnEnd    = min(floor(width * (1.0 - yEnd/xEnd) / 2.0), width - 1);
+          columnEnd   += xPos;
 
     float onScreenWidth = (float)(columnEnd - columnStart);
     if(onScreenWidth <= 0.0)
@@ -1773,29 +1798,29 @@ void drawPortalSkyBox(
         return;
     }
 
-    float topStart          =  SCREENCENTERY
-                            - (SCREENHEIGHT * (zTop          - zPos) / xStart);
+    float topStart          = ((1.0 - SCREENRATIO * (zTop - zPos) / xStart) / 2.0);
+          topStart          = (float)height * topStart + (float)yPos;
 
-    float topEnd            = SCREENCENTERY
-                            - (SCREENHEIGHT * (zTop          - zPos) / xEnd);
+    float topEnd            = ((1.0 - SCREENRATIO * (zTop - zPos) / xEnd) / 2.0);
+          topEnd            = (float)height * topEnd + (float)yPos;
 
-    float windowTopStart    =  SCREENCENTERY
-                            - (SCREENHEIGHT * (windowTopZ    - zPos) / xStart);
+    float windowTopStart    = ((1.0 - SCREENRATIO * (windowTopZ - zPos) / xStart) / 2.0);
+          windowTopStart    = (float)height * windowTopStart + (float)yPos;
 
-    float windowTopEnd      = SCREENCENTERY
-                            - (SCREENHEIGHT * (windowTopZ    - zPos) / xEnd);
+    float windowTopEnd      = ((1.0 - SCREENRATIO * (windowTopZ - zPos) / xEnd) / 2.0);
+          windowTopEnd      = (float)height * windowTopEnd + (float)yPos;
 
-    float bottomStart       =  SCREENCENTERY
-                            - (SCREENHEIGHT * (zBottom       - zPos) / xStart);
+    float bottomStart       = ((1.0 - SCREENRATIO * (zBottom - zPos) / xStart) / 2.0);
+          bottomStart       = (float)height * bottomStart + (float)yPos;
 
-    float bottomEnd         = SCREENCENTERY
-                            - (SCREENHEIGHT * (zBottom       - zPos) / xEnd);
+    float bottomEnd         = ((1.0 - SCREENRATIO * (zBottom - zPos) / xEnd) / 2.0);
+          bottomEnd         = (float)height * bottomEnd + (float)yPos;
 
-    float windowBottomStart =  SCREENCENTERY
-                            - (SCREENHEIGHT * (windowBottomZ - zPos) / xStart);
+    float windowBottomStart = ((1.0 - SCREENRATIO * (windowBottomZ - zPos) / xStart) / 2.0);
+          windowBottomStart = (float)height * windowBottomStart + (float)yPos;
 
-    float windowBottomEnd   = SCREENCENTERY
-                            - (SCREENHEIGHT * (windowBottomZ - zPos) / xEnd);
+    float windowBottomEnd   = ((1.0 - SCREENRATIO * (windowBottomZ - zPos) / xEnd) / 2.0);
+          windowBottomEnd   = (float)height * windowBottomEnd + (float)yPos;
 
     float currentTop = topStart;
     float topStep    = (topEnd - topStart) / onScreenWidth;
@@ -1826,8 +1851,8 @@ void drawPortalSkyBox(
     float textureTrueWindowTop    = textureTrueTop + topWallHeight;
     float textureTrueBottom       = textureHeightBottom - yOffset;
     float textureTrueWindowBottom = textureTrueBottom - bottomWallHeight;
-    int*  fullClippingPointer = &(fullClipping[columnStart*2]);
-    int*  fastClippingPointer = &(fastClipping[0]);
+    int*  fullClippingPointer = &(fullClipping[(columnStart - xPos)*2]);
+    int*  fastClippingPointer = &(fastClipping[0]) - xPos;
     int   screenTop;
     int   screenBottom;
     int   screenFullTop;
@@ -2605,7 +2630,7 @@ void drawPortalSkyBox(
 
 
 
-void drawPortalBottom(WallDrawData* data)
+void drawPortalBottom(WallDrawData* data, int xPos, int yPos, int width, int height)
 {
     float        xStart        = data->xStart;
     float        xEnd          = data->xEnd;
@@ -2625,8 +2650,10 @@ void drawPortalBottom(WallDrawData* data)
     int          textureNUM    = data->textureID;
 
 
-    int   columnStart = min(floor((yStart/xStart - 1.0) * -320.0), 639);
-    int   columnEnd   = min(floor((yEnd/xEnd - 1.0) * -320.0), 639);
+    int   columnStart  = min(floor(width * (1.0 - yStart/xStart) / 2.0), width - 1);
+          columnStart += xPos;
+    int   columnEnd    = min(floor(width * (1.0 - yEnd/xEnd) / 2.0), width - 1);
+          columnEnd   += xPos;
 
     float onScreenWidth = (float)(columnEnd - columnStart);
     if(onScreenWidth == 0.0)
@@ -2634,17 +2661,17 @@ void drawPortalBottom(WallDrawData* data)
         return;
     }
 
-    float topStart    =  SCREENCENTERY
-    - (SCREENHEIGHT * (zTop    - zPos) / xStart);
+    float topStart    = ((1.0 - SCREENRATIO * (zTop - zPos) / xStart) / 2.0);
+          topStart    = (float)height * topStart + (float)yPos;
 
-    float topEnd      = SCREENCENTERY
-    - (SCREENHEIGHT * (zTop    - zPos) / xEnd);
+    float topEnd      = ((1.0 - SCREENRATIO * (zTop - zPos) / xEnd) / 2.0);
+          topEnd      = (float)height * topEnd + (float)yPos;
 
-    float bottomStart =  SCREENCENTERY
-    - (SCREENHEIGHT * (zBottom - zPos) / xStart);
+    float bottomStart = ((1.0 - SCREENRATIO * (zBottom - zPos) / xStart) / 2.0);
+          bottomStart = (float)height * bottomStart + (float)yPos;
 
-    float bottomEnd   = SCREENCENTERY
-    - (SCREENHEIGHT * (zBottom - zPos) / xEnd);
+    float bottomEnd   = ((1.0 - SCREENRATIO * (zBottom - zPos) / xEnd) / 2.0);
+          bottomEnd   = (float)height * bottomEnd + (float)yPos;
 
     float currentTop = topStart;
     float topStep    = (topEnd - topStart) / onScreenWidth;
@@ -2667,8 +2694,8 @@ void drawPortalBottom(WallDrawData* data)
 
     float textureTrueTop      = textureHeight - yOffset - roomHeight;
     float textureTrueBottom   = textureHeight - yOffset;
-    int*  fullClippingPointer = &(clipping->full[columnStart*2]);
-    int*  fastClippingPointer = &(clipping->fast[0]);
+    int*  fullClippingPointer = &(clipping->full[(columnStart - xPos)*2]);
+    int*  fastClippingPointer = &(clipping->fast[0]) - xPos;
     int   screenTop;
     int   screenBottom;
     int   screenFullTop;
@@ -3070,7 +3097,7 @@ void drawPortalBottom(WallDrawData* data)
 
 
 
-void drawPortalTop(WallDrawData* data)
+void drawPortalTop(WallDrawData* data, int xPos, int yPos, int width, int height)
 {
     float        xStart        = data->xStart;
     float        xEnd          = data->xEnd;
@@ -3090,8 +3117,10 @@ void drawPortalTop(WallDrawData* data)
     int          textureNUM    = data->textureID;
 
 
-    int   columnStart = min(floor((yStart/xStart - 1.0) * -320.0), 639);
-    int   columnEnd   = min(floor((yEnd/xEnd - 1.0) * -320.0), 639);
+    int   columnStart  = min(floor(width * (1.0 - yStart/xStart) / 2.0), width - 1);
+          columnStart += xPos;
+    int   columnEnd    = min(floor(width * (1.0 - yEnd/xEnd) / 2.0), width - 1);
+          columnEnd   += xPos;
 
     float onScreenWidth = (float)(columnEnd - columnStart + 1);
     if(onScreenWidth == 0.0)
@@ -3099,17 +3128,17 @@ void drawPortalTop(WallDrawData* data)
         return;
     }
 
-    float topStart    =  SCREENCENTERY
-    - (SCREENHEIGHT * (zTop    - zPos) / xStart);
+    float topStart    = ((1.0 - SCREENRATIO * (zTop - zPos) / xStart) / 2.0);
+          topStart    = (float)height * topStart + (float)yPos;
 
-    float topEnd      = SCREENCENTERY
-    - (SCREENHEIGHT * (zTop    - zPos) / xEnd);
+    float topEnd      = ((1.0 - SCREENRATIO * (zTop - zPos) / xEnd) / 2.0);
+          topEnd      = (float)height * topEnd + (float)yPos;
 
-    float bottomStart =  SCREENCENTERY
-    - (SCREENHEIGHT * (zBottom - zPos) / xStart);
+    float bottomStart = ((1.0 - SCREENRATIO * (zBottom - zPos) / xStart) / 2.0);
+          bottomStart = (float)height * bottomStart + (float)yPos;
 
-    float bottomEnd   = SCREENCENTERY
-    - (SCREENHEIGHT * (zBottom - zPos) / xEnd);
+    float bottomEnd   = ((1.0 - SCREENRATIO * (zBottom - zPos) / xEnd) / 2.0);
+          bottomEnd   = (float)height * bottomEnd + (float)yPos;
 
     float currentTop = topStart;
     float topStep    = (topEnd - topStart) / onScreenWidth;
@@ -3132,8 +3161,8 @@ void drawPortalTop(WallDrawData* data)
 
     float textureTrueTop      = textureHeight - yOffset - roomHeight;
     float textureTrueBottom   = textureHeight - yOffset;
-    int*  fullClippingPointer = &(clipping->full[columnStart*2]);
-    int*  fastClippingPointer = &(clipping->fast[0]);
+    int*  fullClippingPointer = &(clipping->full[(columnStart - xPos)*2]);
+    int*  fastClippingPointer = &(clipping->fast[0]) - xPos;
     int   screenTop;
     int   screenBottom;
     int   screenFullTop;
@@ -3534,7 +3563,7 @@ void drawPortalTop(WallDrawData* data)
 
 
 
-void drawWall(WallDrawData* data)
+void drawWall(WallDrawData* data, int xPos, int yPos, int width, int height)
 {
     float        xStart        = data->xStart;
     float        xEnd          = data->xEnd;
@@ -3559,8 +3588,10 @@ void drawWall(WallDrawData* data)
         return;
     }
 
-    int   columnStart = min(floor((yStart/xStart - 1.0) * -320.0), 639);
-    int   columnEnd   = min(floor((yEnd/xEnd - 1.0) * -320.0), 639);
+    int   columnStart  = min(floor(width * (1.0 - yStart/xStart) / 2.0), width - 1);
+          columnStart += xPos;
+    int   columnEnd    = min(floor(width * (1.0 - yEnd/xEnd) / 2.0), width - 1);
+          columnEnd   += xPos;
 
     float onScreenWidth = (float)(columnEnd - columnStart);
     if(onScreenWidth == 0.0)
@@ -3568,17 +3599,18 @@ void drawWall(WallDrawData* data)
         return;
     }
 
-    float topStart    =  SCREENCENTERY
-    - (SCREENHEIGHT * (zTop    - zPos) / xStart);
+    float topStart    = ((1.0 - SCREENRATIO * (zTop - zPos) / xStart) / 2.0);
+          topStart    = (float)height * topStart + (float)yPos;
 
-    float topEnd      = SCREENCENTERY
-    - (SCREENHEIGHT * (zTop    - zPos) / xEnd);
+    float topEnd      = ((1.0 - SCREENRATIO * (zTop - zPos) / xEnd) / 2.0);
+          topEnd      = (float)height * topEnd + (float)yPos;
 
-    float bottomStart =  SCREENCENTERY
-    - (SCREENHEIGHT * (zBottom - zPos) / xStart);
+    float bottomStart = ((1.0 - SCREENRATIO * (zBottom - zPos) / xStart) / 2.0);
+          bottomStart = (float)height * bottomStart + (float)yPos;
 
-    float bottomEnd   = SCREENCENTERY
-    - (SCREENHEIGHT * (zBottom - zPos) / xEnd);
+    float bottomEnd   = ((1.0 - SCREENRATIO * (zBottom - zPos) / xEnd) / 2.0);
+          bottomEnd   = (float)height * bottomEnd + (float)yPos;
+
 
     float currentTop = topStart;
     float topStep    = (topEnd - topStart) / onScreenWidth;
@@ -3620,8 +3652,8 @@ void drawWall(WallDrawData* data)
     float textureTrueBottom   = textureHeight
                               - (yOffset / mipMapFactor);
 
-    int*  fullClippingPointer = &(clipping->full[columnStart*2]);
-    int*  fastClippingPointer = &(clipping->fast[0]);
+    int*  fullClippingPointer = &(clipping->full[(columnStart - xPos)*2]);
+    int*  fastClippingPointer = &(clipping->fast[0]) - xPos;
     int   screenTop;
     int   screenBottom;
     int   screenFullTop;
@@ -4223,7 +4255,7 @@ void drawSegment(FrameBuffer* clipping, Segment* seg, Player* pov)
             drawData.floorColor     = seg->sectorLeft->floorColor;
             drawData.ceilingColor   = seg->sectorLeft->ceilingColor;
 
-            drawPortalClip(&drawData);
+            drawPortalClip(&drawData, SCREENXPOS, SCREENYPOS, SCREENWIDTH, SCREENHEIGHT);
         }
     }
     else if(seg->isPortal == false) //SOLID WALL
@@ -4247,7 +4279,7 @@ void drawSegment(FrameBuffer* clipping, Segment* seg, Player* pov)
             drawData.ceilingColor   = seg->sectorRight->ceilingColor;
             drawData.textureID      = seg->middle->textureID;
 
-            drawWall(&drawData);
+            drawWall(&drawData, SCREENXPOS, SCREENYPOS, SCREENWIDTH, SCREENHEIGHT);
         }
         else //SKYBOX WALL
         {
@@ -4268,7 +4300,7 @@ void drawSegment(FrameBuffer* clipping, Segment* seg, Player* pov)
             drawData.ceilingColor   = seg->sectorRight->ceilingColor;
             drawData.textureID      = seg->middle->textureID;
 
-            drawPortalClipSkyBox(&drawData);
+            drawPortalClipSkyBox(&drawData, SCREENXPOS, SCREENYPOS, SCREENWIDTH, SCREENHEIGHT);
         }
     }
     else //PORTAL`
@@ -4302,11 +4334,11 @@ void drawSegment(FrameBuffer* clipping, Segment* seg, Player* pov)
 
             if(seg->isSkyBox == false)
             {
-                drawPortalClip(&drawData);
+                drawPortalClip(&drawData, SCREENXPOS, SCREENYPOS, SCREENWIDTH, SCREENHEIGHT);
             }
             else
             {
-                drawPortalClipSkyBox(&drawData);
+                drawPortalClipSkyBox(&drawData, SCREENXPOS, SCREENYPOS, SCREENWIDTH, SCREENHEIGHT);
             }
         }
         else if (floorHeightFront >= floorHeightBack)
@@ -4330,17 +4362,17 @@ void drawSegment(FrameBuffer* clipping, Segment* seg, Player* pov)
             drawData.floorColor     = seg->sectorRight->floorColor;
             drawData.ceilingColor   = seg->sectorRight->ceilingColor;
 
-            drawPortalTop(&drawData);
+            drawPortalTop(&drawData, SCREENXPOS, SCREENYPOS, SCREENWIDTH, SCREENHEIGHT);
 
             drawData.zBottom        = floorHeightFront;
 
             if(seg->isSkyBox == false)
             {
-                drawPortalClipBottom(&drawData);
+                drawPortalClipBottom(&drawData, SCREENXPOS, SCREENYPOS, SCREENWIDTH, SCREENHEIGHT);
             }
             else
             {
-                drawPortalClipBottomSkyBox(&drawData);
+                drawPortalClipBottomSkyBox(&drawData, SCREENXPOS, SCREENYPOS, SCREENWIDTH, SCREENHEIGHT);
             }
         }
         else if(ceilingHeightFront <= ceilingHeightBack)
@@ -4362,17 +4394,17 @@ void drawSegment(FrameBuffer* clipping, Segment* seg, Player* pov)
             drawData.floorColor     = seg->sectorRight->floorColor;
             drawData.ceilingColor   = seg->sectorRight->ceilingColor;
 
-            drawPortalBottom(&drawData);
+            drawPortalBottom(&drawData, SCREENXPOS, SCREENYPOS, SCREENWIDTH, SCREENHEIGHT);
 
             drawData.zTop           = ceilingHeightFront;
 
             if(seg->isSkyBox == false)
             {
-                drawPortalClipTop(&drawData);
+                drawPortalClipTop(&drawData, SCREENXPOS, SCREENYPOS, SCREENWIDTH, SCREENHEIGHT);
             }
             else
             {
-                drawPortalClipTopSkyBox(&drawData);
+                drawPortalClipTopSkyBox(&drawData, SCREENXPOS, SCREENYPOS, SCREENWIDTH, SCREENHEIGHT);
             }
         }
         else
@@ -4400,7 +4432,11 @@ void drawSegment(FrameBuffer* clipping, Segment* seg, Player* pov)
                     &drawData,
                     seg->sectorLeft->floorHeight,
                     seg->sectorLeft->ceilingHeight,
-                    seg->top
+                    seg->top,
+                    SCREENXPOS,
+                    SCREENYPOS,
+                    SCREENWIDTH,
+                    SCREENHEIGHT
                 );
             }
             else
@@ -4409,7 +4445,11 @@ void drawSegment(FrameBuffer* clipping, Segment* seg, Player* pov)
                     &drawData,
                     seg->sectorLeft->floorHeight,
                     seg->sectorLeft->ceilingHeight,
-                    seg->top
+                    seg->top,
+                    SCREENXPOS,
+                    SCREENYPOS,
+                    SCREENWIDTH,
+                    SCREENHEIGHT
                 );
             }
         }
@@ -4473,8 +4513,8 @@ void drawMapSegment(Segment* seg, Player* pov, float scale)
     drawDY *= scaleFactor;
 
     //Center points
-    drawX += SCREENCENTERX;
-    drawY += SCREENCENTERY;
+    drawX += MAPWIDTH / 2;
+    drawY += MAPHEIGHT /2;
 
     endX = drawX + drawDX;
     endY = drawY + drawDY;
@@ -4484,7 +4524,7 @@ void drawMapSegment(Segment* seg, Player* pov, float scale)
     {
         return;
     }
-    else if(drawX > SCREENWIDTH && endX > SCREENWIDTH) //right screen clip
+    else if(drawX > MAPWIDTH && endX > MAPWIDTH) //right screen clip
     {
         return;
     }
@@ -4492,7 +4532,7 @@ void drawMapSegment(Segment* seg, Player* pov, float scale)
     {
         return;
     }
-    else if(drawY > SCREENHEIGHT && endY > SCREENHEIGHT) //below screen clip
+    else if(drawY > MAPHEIGHT && endY > MAPHEIGHT) //below screen clip
     {
         return;
     }
@@ -4504,9 +4544,9 @@ void drawMapSegment(Segment* seg, Player* pov, float scale)
             leftInt = -(drawDY / drawDX) * drawX + drawY;
         }
 
-        if(drawX > SCREENWIDTH || endX > SCREENWIDTH)
+        if(drawX > MAPWIDTH || endX > MAPWIDTH)
         {
-            rightInt = -(drawDY / drawDX) * (drawX - SCREENWIDTH) + drawY;
+            rightInt = -(drawDY / drawDX) * (drawX - MAPWIDTH) + drawY;
         }
     }
 
@@ -4517,9 +4557,9 @@ void drawMapSegment(Segment* seg, Player* pov, float scale)
             topInt = -(drawDX / drawDY) * drawY + drawX;
         }
 
-        if(drawY > SCREENHEIGHT || endY > SCREENHEIGHT)
+        if(drawY > MAPHEIGHT || endY > MAPHEIGHT)
         {
-            bottomInt = -(drawDX / drawDY) * (drawY - SCREENHEIGHT) + drawX;
+            bottomInt = -(drawDX / drawDY) * (drawY - MAPHEIGHT) + drawX;
         }
     }
 
@@ -4529,9 +4569,9 @@ void drawMapSegment(Segment* seg, Player* pov, float scale)
         drawY = leftInt;
     }
 
-    if(drawX > SCREENWIDTH)
+    if(drawX > MAPWIDTH)
     {
-        drawX = SCREENWIDTH;
+        drawX = MAPWIDTH;
         drawY = rightInt;
     }
 
@@ -4541,9 +4581,9 @@ void drawMapSegment(Segment* seg, Player* pov, float scale)
         drawX = topInt;
     }
 
-    if(drawY > SCREENHEIGHT)
+    if(drawY > MAPHEIGHT)
     {
-        drawY = SCREENHEIGHT;
+        drawY = MAPHEIGHT;
         drawX = bottomInt;
     }
 
@@ -4553,9 +4593,9 @@ void drawMapSegment(Segment* seg, Player* pov, float scale)
         endY = leftInt;
     }
 
-    if(endX > SCREENWIDTH)
+    if(endX > MAPWIDTH)
     {
-        endX = SCREENWIDTH;
+        endX = MAPWIDTH;
         endY = rightInt;
     }
 
@@ -4565,9 +4605,9 @@ void drawMapSegment(Segment* seg, Player* pov, float scale)
         endX = topInt;
     }
 
-    if(endY > SCREENHEIGHT)
+    if(endY > MAPHEIGHT)
     {
-        endY = SCREENHEIGHT;
+        endY = MAPHEIGHT;
         endX = bottomInt;
     }
 
@@ -4591,7 +4631,7 @@ void drawMapSegment(Segment* seg, Player* pov, float scale)
     if(seg->isSkyBox)
       set_multiply_color(color_blue);
 
-    draw_region_rotozoomed_at(drawX, drawY);
+    draw_region_rotozoomed_at(drawX + MAPXPOS, drawY + MAPYPOS);
 }
 
 
@@ -4625,9 +4665,6 @@ void drawBspLeafMap(BspLeaf* leaf, Player* pov, float scale)
 
 void mapBspRender(BspBranch* currentNode, Player* pov, float scale)
 {
-    float xPos = pov->xPos;
-    float yPos = pov->yPos;
-
     if(currentNode->leaf != NULL)
     {
         drawBspLeafMap(currentNode->leaf, pov, scale);
@@ -4656,7 +4693,7 @@ void mapRender(BspBranch* map, Player* pov, float scale)
 
     set_multiply_color(color_magenta);
 
-    draw_region_at(SCREENCENTERX - 1, SCREENCENTERY - 1);
+    draw_region_at(MAPXPOS + MAPWIDTH / 2, MAPYPOS + MAPHEIGHT / 2);
 
     set_multiply_color(color_white);
 }
@@ -4727,58 +4764,114 @@ void drawSkyBox(SkyBox* sky, Player* pov)
     Texture* skyTexture = sky->texture;
     select_texture(skyTexture->textureID);
 
-    float xScale = SCREENWIDTH / (skyTexture->width / 4.0);
-    float yScale = (float)SCREENHEIGHT / (float)(skyTexture->height);
+    float xScale = (float)SCREENWIDTH / ((float)skyTexture->width / 4.0);
+    float yScale = (float)SCREENHEIGHT / (float)skyTexture->height;
 
-    set_drawing_scale(xScale, yScale);
 
     float startAngle = PIo4 + pov->direction - sky->rotation;
     float endAngle   = startAngle - PIo2;
 
     float startTexture = (1.0 - fmod(fmod((startAngle / TAU), 1.0) + 1.0, 1.0))
-                       * skyTexture->width;
+                       * (float)skyTexture->width;
 
     float endTexture = (1.0 - fmod(fmod((endAngle / TAU), 1.0) + 1.0, 1.0))
-                     * skyTexture->width;
+                     * (float)skyTexture->width;
 
     if(startTexture < endTexture) //No seam
     {
-        select_region(0);
+        //left edge
         define_region(
             floor(startTexture),
             0,
-            ceil(endTexture),
+            floor(startTexture),
             skyTexture->height,
             floor(startTexture),
             0
         );
 
-        draw_region_zoomed_at((floor(startTexture) - startTexture) * xScale, 0);
+        set_drawing_scale(SCREENWIDTH / 2, yScale);
+        draw_region_zoomed_at(SCREENXPOS, SCREENYPOS);
+
+        //right edge
+        define_region(
+            floor(endTexture),
+            0,
+            floor(endTexture),
+            skyTexture->height,
+            floor(endTexture),
+            0
+        );
+
+        draw_region_zoomed_at(SCREENWIDTH / 2 + SCREENXPOS, SCREENYPOS);
+
+        //main region
+        select_region(0);
+        define_region(
+            ceil(startTexture),
+            0,
+            floor(endTexture) - 1,
+            skyTexture->height,
+            ceil(startTexture),
+            0
+        );
+
+
+        set_drawing_scale(xScale, yScale);
+        draw_region_zoomed_at((ceil(startTexture) - startTexture) * xScale + SCREENXPOS, SCREENYPOS);
+
     }
     else //Seam
     {
-        select_region(0);
+        //left edge
         define_region(
             floor(startTexture),
+            0,
+            floor(startTexture),
+            skyTexture->height,
+            floor(startTexture),
+            0
+        );
+
+        set_drawing_scale(SCREENWIDTH / 2, yScale);
+        draw_region_zoomed_at(SCREENXPOS, SCREENYPOS);
+
+        //right edge
+        define_region(
+            floor(endTexture),
+            0,
+            floor(endTexture),
+            skyTexture->height,
+            floor(endTexture),
+            0
+        );
+
+        draw_region_zoomed_at(SCREENWIDTH / 2 + SCREENXPOS, SCREENYPOS);
+
+        //left region
+        select_region(0);
+        define_region(
+            ceil(startTexture),
             0,
             skyTexture->width,
             skyTexture->height,
-            floor(startTexture),
+            ceil(startTexture),
             0
         );
 
-        draw_region_zoomed_at((floor(startTexture) - startTexture) * xScale, 0);
+        set_drawing_scale(xScale, yScale);
+        draw_region_zoomed_at((ceil(startTexture) - startTexture) * xScale + SCREENXPOS, SCREENYPOS);
 
+        //right region
         define_region(
             0,
             0,
-            ceil(endTexture),
+            floor(endTexture) - 1,
             skyTexture->height,
-            0,
+            ceil(startTexture) - skyTexture->width,
             0
         );
 
-        draw_region_zoomed_at((skyTexture->width - startTexture) * xScale, 0);
+        draw_region_zoomed_at((ceil(startTexture) - startTexture) * xScale + SCREENXPOS, SCREENYPOS);
     }
 
     return;

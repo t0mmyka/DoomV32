@@ -18,7 +18,6 @@ void main(void)
     int     iTest;
     void*   pTest;
 
-    bool  showMap  = false;
     float mapScale = 1.0;
 
     int         TIME;
@@ -100,8 +99,8 @@ void main(void)
     }
     for(int i = 0; i < SCREENWIDTH*2; i += 2)
     {
-        drawClip.full[i]   = SCREENHEIGHT;
-        drawClip.full[i+1] = 0;
+        drawClip.full[i]   = SCREENHEIGHT + SCREENYPOS;
+        drawClip.full[i+1] = SCREENYPOS;
     }
     cleanBuffer = drawClip;
 
@@ -455,12 +454,8 @@ void main(void)
 
     while(true)
     {
-        if(gamepad_button_start() == 1)
-            showMap = !showMap;
-
         clear_screen(color_black);
-        if(!showMap)
-          drawSkyBox(&plainSky, &user);
+        drawSkyBox(&plainSky, &user);
 
         playerMovement(&user, &rootNode);
 
@@ -473,46 +468,40 @@ void main(void)
         Room2.ceilingHeight = 28.0  +   5.0*sin((float)TIME / 55.0);
         wall8.xOffset       = 128.0 + 128.0*sin((float)TIME / 360.0);
 
-        if(!showMap)
+        bspRender(filledFastClipping, &drawClip, &rootNode, &user);
+        drawClip = cleanBuffer;
+        if(gamepad_button_x() > 0)
         {
-            bspRender(filledFastClipping, &drawClip, &rootNode, &user);
-            drawClip = cleanBuffer;
+            mapScale *= 1.01;
         }
-        else
+
+        if(gamepad_button_y() > 0)
         {
-            if(gamepad_button_x() > 0)
-            {
-                mapScale *= 1.01;
-            }
-
-            if(gamepad_button_y() > 0)
-            {
-                mapScale /= 1.01;
-            }
-
-            mapRender(&rootNode, &user, mapScale);
+            mapScale /= 1.01;
         }
+
+        mapRender(&rootNode, &user, mapScale);
 
 
         ftoa(user.xPos, text);
-        print_at(10,  320, "X:");
-        print_at(30,  320, text);
+        print_at(480,   0, "X:");
+        print_at(510,   0, text);
         ftoa(user.yPos, text);
-        print_at(140, 320, "Y:");
-        print_at(160, 320, text);
+        print_at(480,  30, "Y:");
+        print_at(510,  30, text);
         ftoa(user.zPos, text);
-        print_at(270, 320, "Z:");
-        print_at(290, 320, text);
+        print_at(480,  60, "Z:");
+        print_at(510,  60, text);
 
         ftoa(user.xSpeed, text);
-        print_at(0,   340, "dX:");
-        print_at(30,  340, text);
+        print_at(480,  90, "dX:");
+        print_at(510,  90, text);
         ftoa(user.ySpeed, text);
-        print_at(130, 340, "dY:");
-        print_at(160, 340, text);
+        print_at(480, 120, "dY:");
+        print_at(510, 120, text);
         ftoa(user.zSpeed, text);
-        print_at(260, 340, "dZ:");
-        print_at(290, 340, text);
+        print_at(480, 150, "dZ:");
+        print_at(510, 150, text);
 
         TIME++;
 
