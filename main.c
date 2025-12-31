@@ -134,6 +134,7 @@ void main(void)
     wall0.top         = &wallTexture;
     wall0.yOffset     =    0.0;
     wall0.xOffset     =   48.0;
+    wall0.seen        = false;
 
     wall1.Name        = "wall1";
     wall1.xPos        =  128.0;
@@ -150,6 +151,7 @@ void main(void)
     wall1.top         = &wallTexture;
     wall1.yOffset     =    0.0;
     wall1.xOffset     =    0.0;
+    wall1.seen        = false;
 
     wall2.Name        = "wall2";
     wall2.xPos        =  128.0;
@@ -166,6 +168,7 @@ void main(void)
     wall2.top         = &wallTexture;
     wall2.yOffset     =    0.0;
     wall2.xOffset     =    0.0;
+    wall2.seen        = false;
 
     wall3.Name        = "wall3";
     wall3.xPos        =   76.8;
@@ -182,6 +185,7 @@ void main(void)
     wall3.top         = &testTexture;
     wall3.yOffset     =    0.0;
     wall3.xOffset     =    0.0;
+    wall3.seen        = false;
 
     wall4.Name        = "wall4";
     wall4.xPos        =  120.0;
@@ -198,6 +202,7 @@ void main(void)
     wall4.top         = &wallTexture;
     wall4.yOffset     =    0.0;
     wall4.xOffset     =    8.0;
+    wall4.seen        = false;
 
     wall5.Name        = "wall5";
     wall5.xPos        =   51.2;
@@ -214,6 +219,7 @@ void main(void)
     wall5.top         = &wallTexture;
     wall5.yOffset     =    0.0;
     wall5.xOffset     =    0.0;
+    wall5.seen        = false;
 
     wall6.Name        = "wall6";
     wall6.xPos        =    0.0;
@@ -230,6 +236,7 @@ void main(void)
     wall6.top         = &wallTexture;
     wall6.yOffset     =    0.0;
     wall6.xOffset     =    0.0;
+    wall6.seen        = false;
 
     wall7.Name        = "wall7";
     wall7.xPos        =    0.0;
@@ -246,6 +253,7 @@ void main(void)
     wall7.top         = &wallTexture;
     wall7.yOffset     =    0.0;
     wall7.xOffset     =    0.0;
+    wall7.seen        = false;
 
     wall8.Name        = "wall8";
     wall8.xPos        =   32.0;
@@ -262,6 +270,7 @@ void main(void)
     wall8.top         = &wallTexture;
     wall8.yOffset     =    0.0;
     wall8.xOffset     =    0.0;
+    wall8.seen        = false;
 
     wall9.Name        = "wall9";
     wall9.xPos        =    8.0;
@@ -278,6 +287,7 @@ void main(void)
     wall9.top         = &wallTexture;
     wall9.yOffset     =    0.0;
     wall9.xOffset     =    8.0;
+    wall9.seen        = false;
 
     wall10.Name        = "wall10";
     wall10.xPos        =   57.6;
@@ -294,6 +304,7 @@ void main(void)
     wall10.top         = &wallTexture;
     wall10.yOffset     =    0.0;
     wall10.xOffset     =    0.0;
+    wall10.seen        = false;
 
     testwall1.Name        = "testwall1";
     testwall1.xPos        =  138.0;
@@ -310,6 +321,7 @@ void main(void)
     testwall1.top         = &wallTexture;
     testwall1.yOffset     =    0.0;
     testwall1.xOffset     =    0.0;
+    testwall1.seen        = false;
 
     testwall2.Name        = "testwall2";
     testwall2.xPos        =  -10.0;
@@ -326,6 +338,7 @@ void main(void)
     testwall2.top         = &wallTexture;
     testwall2.yOffset     =    0.0;
     testwall2.xOffset     =    0.0;
+    testwall2.seen        = false;
 
     leaf0.segList = &(leaf0List[0]);
 

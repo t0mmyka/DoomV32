@@ -44,6 +44,7 @@ struct Segment
     Texture* top;
     float    xOffset;
     float    yOffset;
+    bool     seen;
 };
 
 struct BspLeaf

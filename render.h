@@ -217,7 +217,7 @@ void drawPortalClip(WallDrawData* data, int xPos, int yPos, int width, int heigh
 
 
 
-void drawPortalClipSkyBox(WallDrawData* data, int xPos, int yPos, int width, int height)
+bool drawPortalClipSkyBox(WallDrawData* data, int xPos, int yPos, int width, int height)
 {
     float        xStart        = data->xStart;
     float        xEnd          = data->xEnd;
@@ -238,7 +238,7 @@ void drawPortalClipSkyBox(WallDrawData* data, int xPos, int yPos, int width, int
     float onScreenWidth = (float)(columnEnd - columnStart);
     if(onScreenWidth == 0.0)
     {
-        return;
+        return false;
     }
 
     float topStart    = ((1.0 - SCREENRATIO * (zTop - zPos) / xStart) / 2.0);
@@ -263,6 +263,7 @@ void drawPortalClipSkyBox(WallDrawData* data, int xPos, int yPos, int width, int
     int*  fullClippingPointer = &(clipping->full[(columnStart - xPos)*2]);
     int*  fastClippingPointer = &(clipping->fast[columnStart - xPos]);
 
+    bool  seen = false;
 
     select_texture(-1);
     set_drawing_scale(1.0, 1.0);
@@ -305,11 +306,16 @@ void drawPortalClipSkyBox(WallDrawData* data, int xPos, int yPos, int width, int
         "igt  R1,  R5"
         "jt   R1,  _CSBfloor_clipped"
 
-        //Set new bottom clipping
-        "imax R0,  R4"
-        "mov  [R13], R0"
+        //SEEN
+        "mov  R1,  R0"
+        "igt  R1,  R4"
+        "jf   R1,  _CSBunseen1"
+        "mov  {seen}, R1"
+
+        "_CSBunseen1:"
 
         //Get floor height
+        "imax R0,  R4"
         "mov  R1,  R5"
         "isub R1,  R0"
         "cif  R1"
@@ -331,11 +337,16 @@ void drawPortalClipSkyBox(WallDrawData* data, int xPos, int yPos, int width, int
         "ilt  R1,  R4"
         "jt   R1,  _CSBceiling_clipped"
 
-        //Set new top clipping
-        "imin R0,  R5"
-        "mov  [R13], R0"
+        //SEEN
+        "mov  R1,  R0"
+        "ilt  R1,  R5"
+        "jf   R1,  _CSBunseen2"
+        "mov  {seen}, R1"
+
+        "_CSBunseen2:"
 
         //Get ceiling height
+        "imin R0,  R5"
         "mov  R1,  R0"
         "isub R1,  R4"
         "cif  R1"
@@ -376,7 +387,7 @@ void drawPortalClipSkyBox(WallDrawData* data, int xPos, int yPos, int width, int
 
     set_multiply_color(color_white);
 
-    return;
+    return seen;
 }
 
 
@@ -510,7 +521,7 @@ void drawPortalClipBottom(WallDrawData* data, int xPos, int yPos, int width, int
 
 
 
-void drawPortalClipBottomSkyBox(WallDrawData* data, int xPos, int yPos, int width, int height)
+bool drawPortalClipBottomSkyBox(WallDrawData* data, int xPos, int yPos, int width, int height)
 {
     float        xStart        = data->xStart;
     float        xEnd          = data->xEnd;
@@ -529,7 +540,7 @@ void drawPortalClipBottomSkyBox(WallDrawData* data, int xPos, int yPos, int widt
     float onScreenWidth = (float)(columnEnd - columnStart);
     if(onScreenWidth == 0.0)
     {
-        return;
+        return false;
     }
 
     float bottomStart = ((1.0 - SCREENRATIO * (zBottom - zPos) / xStart) / 2.0);
@@ -545,6 +556,7 @@ void drawPortalClipBottomSkyBox(WallDrawData* data, int xPos, int yPos, int widt
     int*  fullClippingPointer = &(clipping->full[(columnStart - xPos)*2]);
     int*  fastClippingPointer = &(clipping->fast[columnStart - xPos]);
 
+    bool  seen = false;
 
     select_texture(-1);
     set_drawing_scale(1.0, 1.0);
@@ -586,11 +598,17 @@ void drawPortalClipBottomSkyBox(WallDrawData* data, int xPos, int yPos, int widt
         "igt  R1,  R5"
         "jt   R1,  _CBSBfloor_clipped"
 
-        //Set new bottom clipping
-        "imax R0,  R4"
-        "mov  [R13], R0"
+        //SEEN
+        "mov  R1,  R0"
+        "igt  R1,  R4"
+        "jf   R1,  _CBSBunseen"
+        "mov  {seen}, R1"
+
+        "_CBSBunseen:"
+
 
         //Get floor height
+        "imax R0,  R4"
         "mov  R1,  R5"
         "isub R1,  R0"
         "cif  R1"
@@ -623,7 +641,7 @@ void drawPortalClipBottomSkyBox(WallDrawData* data, int xPos, int yPos, int widt
 
     set_multiply_color(color_white);
 
-    return;
+    return seen;
 }
 
 
@@ -754,7 +772,7 @@ void drawPortalClipTop(WallDrawData* data, int xPos, int yPos, int width, int he
 }
 
 
-void drawPortalClipTopSkyBox(WallDrawData* data, int xPos, int yPos, int width, int height)
+bool drawPortalClipTopSkyBox(WallDrawData* data, int xPos, int yPos, int width, int height)
 {
     float        xStart        = data->xStart;
     float        xEnd          = data->xEnd;
@@ -773,7 +791,7 @@ void drawPortalClipTopSkyBox(WallDrawData* data, int xPos, int yPos, int width, 
     float onScreenWidth = (float)(columnEnd - columnStart);
     if(onScreenWidth == 0.0)
     {
-        return;
+        return false;
     }
 
     float topStart    = ((1.0 - SCREENRATIO * (zTop - zPos) / xStart) / 2.0);
@@ -788,6 +806,7 @@ void drawPortalClipTopSkyBox(WallDrawData* data, int xPos, int yPos, int width, 
     int*  fullClippingPointer = &(clipping->full[(columnStart - xPos)*2]);
     int*  fastClippingPointer = &(clipping->fast[columnStart - xPos]);
 
+    bool  seen = false;
 
     select_texture(-1);
     set_drawing_scale(1.0, 1.0);
@@ -828,6 +847,14 @@ void drawPortalClipTopSkyBox(WallDrawData* data, int xPos, int yPos, int width, 
         "ilt  R1,  R4"
         "jt   R1,  _CTSBceiling_clipped"
 
+        //SEEN
+        "mov  R1,  R0"
+        "ilt  R1,  R5"
+        "jf   R1,  _CTSBunseen"
+        "mov  {seen}, R1"
+
+        "_CTSBunseen:"
+
         //Get ceiling height
         "imin R0,  R5"
         "isub R0,  R4"
@@ -866,12 +893,12 @@ void drawPortalClipTopSkyBox(WallDrawData* data, int xPos, int yPos, int width, 
 
     set_multiply_color(color_white);
 
-    return;
+    return seen;
 }
 
 
 
-void drawPortal(
+bool drawPortal(
     WallDrawData* data,
     float windowBottomZ,
     float windowTopZ,
@@ -914,7 +941,7 @@ void drawPortal(
     float onScreenWidth = (float)(columnEnd - columnStart);
     if(onScreenWidth <= 0.0)
     {
-        return;
+        return false;
     }
 
     float topStart          = ((1.0 - SCREENRATIO * (zTop - zPos) / xStart) / 2.0);
@@ -979,6 +1006,8 @@ void drawPortal(
     int   textureFullTop;
     int   textureFullBottom;
 
+    bool  seen = false;
+
     select_texture(textureBottom);
     select_region(0);
     set_multiply_color(0xFFFFFFFF);
@@ -1027,6 +1056,10 @@ void drawPortal(
         "cif  R2"
         "flt  R0,  R2"
         "jt   R0,  _Pbottom_offsecreen"
+
+        //SEEN
+        "mov  R0,  1"
+        "mov  {seen}, R0"
 
         //Determine currentTextureX
         "mov  R0,  R4"
@@ -1413,6 +1446,10 @@ void drawPortal(
         "flt  R0,  R1"
         "jt   R0,  _PTbottom_offsecreen"
 
+        //SEEN
+        "mov  R0,  1"
+        "mov  {seen}, R0"
+
         //Determine currentTextureX
         "mov  R0,  R4"
         "fdiv R0,  R5"
@@ -1747,12 +1784,12 @@ void drawPortal(
 
     set_multiply_color(color_white);
 
-    return;
+    return seen;
 }
 
 
 
-void drawPortalSkyBox(
+bool drawPortalSkyBox(
     WallDrawData* data,
     float windowBottomZ,
     float windowTopZ,
@@ -1795,7 +1832,7 @@ void drawPortalSkyBox(
     float onScreenWidth = (float)(columnEnd - columnStart);
     if(onScreenWidth <= 0.0)
     {
-        return;
+        return false;
     }
 
     float topStart          = ((1.0 - SCREENRATIO * (zTop - zPos) / xStart) / 2.0);
@@ -1860,6 +1897,8 @@ void drawPortalSkyBox(
     int   textureFullTop;
     int   textureFullBottom;
 
+    bool  seen;
+
     select_texture(textureBottom);
     select_region(0);
     set_multiply_color(0xFFFFFFFF);
@@ -1908,6 +1947,10 @@ void drawPortalSkyBox(
         "cif  R2"
         "flt  R0,  R2"
         "jt   R0,  _PSBBbottom_offsecreen"
+
+        //SEEN
+        "mov  R0,  1"
+        "mov  {seen}, R0"
 
         //Determine currentTextureX
         "mov  R0,  R4"
@@ -2180,6 +2223,10 @@ void drawPortalSkyBox(
         // Set fast clipping true
         "_PSBBbottom_offsecreen:"
 
+        //SEEN
+        "mov  R0,  1"
+        "mov  {seen}, R0"
+
         //Select floor settings
         "in   R0,  GPU_SelectedTexture"
         "out  GPU_SelectedTexture, -1"
@@ -2285,6 +2332,10 @@ void drawPortalSkyBox(
         "cif  R3"
         "fgt  R0,  R3"
         "jt   R0,  _PSBTtop_offscreen"
+
+        //SEEN
+        "mov  R0,  1"
+        "mov  {seen}, R0"
 
         //Check if bottom is above screen
         "mov  R0,  R9"
@@ -2624,13 +2675,13 @@ void drawPortalSkyBox(
 
     set_multiply_color(color_white);
 
-    return;
+    return seen;
 }
 
 
 
 
-void drawPortalBottom(WallDrawData* data, int xPos, int yPos, int width, int height)
+bool drawPortalBottom(WallDrawData* data, int xPos, int yPos, int width, int height)
 {
     float        xStart        = data->xStart;
     float        xEnd          = data->xEnd;
@@ -2658,7 +2709,7 @@ void drawPortalBottom(WallDrawData* data, int xPos, int yPos, int width, int hei
     float onScreenWidth = (float)(columnEnd - columnStart);
     if(onScreenWidth == 0.0)
     {
-        return;
+        return false;
     }
 
     float topStart    = ((1.0 - SCREENRATIO * (zTop - zPos) / xStart) / 2.0);
@@ -2703,6 +2754,7 @@ void drawPortalBottom(WallDrawData* data, int xPos, int yPos, int width, int hei
     int   textureFullTop;
     int   textureFullBottom;
 
+    bool  seen;
 
     select_texture(textureNUM);
     select_region(0);
@@ -2742,6 +2794,10 @@ void drawPortalBottom(WallDrawData* data, int xPos, int yPos, int width, int hei
         "cif  R3"
         "fgt  R0,  R3"
         "jt   R0,  _Btop_offscreen"
+
+        //SEEN
+        "mov  R0,  1"
+        "mov  {seen}, R0"
 
         //Set X drawing point
         "out  GPU_DrawingPointX,  R11"
@@ -3090,14 +3146,14 @@ void drawPortalBottom(WallDrawData* data, int xPos, int yPos, int width, int hei
 
     set_multiply_color(color_white);
 
-    return;
+    return seen;
 }
 
 
 
 
 
-void drawPortalTop(WallDrawData* data, int xPos, int yPos, int width, int height)
+bool drawPortalTop(WallDrawData* data, int xPos, int yPos, int width, int height)
 {
     float        xStart        = data->xStart;
     float        xEnd          = data->xEnd;
@@ -3125,7 +3181,7 @@ void drawPortalTop(WallDrawData* data, int xPos, int yPos, int width, int height
     float onScreenWidth = (float)(columnEnd - columnStart + 1);
     if(onScreenWidth == 0.0)
     {
-        return;
+        return false;
     }
 
     float topStart    = ((1.0 - SCREENRATIO * (zTop - zPos) / xStart) / 2.0);
@@ -3170,6 +3226,7 @@ void drawPortalTop(WallDrawData* data, int xPos, int yPos, int width, int height
     int   textureFullTop;
     int   textureFullBottom;
 
+    bool  seen = false;
 
     select_texture(textureNUM);
     select_region(0);
@@ -3219,6 +3276,10 @@ void drawPortalTop(WallDrawData* data, int xPos, int yPos, int width, int height
         "cif  R1"
         "flt  R0,  R1"
         "jt   R0,  _Tbottom_offsecreen"
+
+        //SEEN
+        "mov  R0,  1"
+        "mov  {seen}, R0"
 
         //Determine currentTextureX
         "mov  R0,  R4"
@@ -3556,14 +3617,14 @@ void drawPortalTop(WallDrawData* data, int xPos, int yPos, int width, int height
 
     set_multiply_color(color_white);
 
-    return;
+    return seen;
 }
 
 
 
 
 
-void drawWall(WallDrawData* data, int xPos, int yPos, int width, int height)
+bool drawWall(WallDrawData* data, int xPos, int yPos, int width, int height)
 {
     float        xStart        = data->xStart;
     float        xEnd          = data->xEnd;
@@ -3585,7 +3646,7 @@ void drawWall(WallDrawData* data, int xPos, int yPos, int width, int height)
 
     if(xStart == 0.0 || yStart == 0.0 || xEnd == 0.0 || yEnd == 0.0)
     {
-        return;
+        return false;
     }
 
     int   columnStart  = min(floor(width * (1.0 - yStart/xStart) / 2.0), width - 1);
@@ -3596,7 +3657,7 @@ void drawWall(WallDrawData* data, int xPos, int yPos, int width, int height)
     float onScreenWidth = (float)(columnEnd - columnStart);
     if(onScreenWidth == 0.0)
     {
-        return;
+        return false;
     }
 
     float topStart    = ((1.0 - SCREENRATIO * (zTop - zPos) / xStart) / 2.0);
@@ -3661,6 +3722,8 @@ void drawWall(WallDrawData* data, int xPos, int yPos, int width, int height)
     int   textureFullTop;
     int   textureFullBottom;
 
+    bool  seen = false;
+
     select_texture(textureNUM);
     set_drawing_scale(1.0, 1.0);
     select_region(0);
@@ -3710,6 +3773,10 @@ void drawWall(WallDrawData* data, int xPos, int yPos, int width, int height)
         "cif  R1"
         "flt  R0,  R1"
         "jt   R0,  _bottom_offsecreen"
+
+        //SEEN
+        "mov  R0,  1"
+        "mov  {seen}, R0"
 
         //Determine currentTextureX
         "mov  R0,  R4"
@@ -4096,7 +4163,7 @@ void drawWall(WallDrawData* data, int xPos, int yPos, int width, int height)
 
     //set_multiply_color(color_white);
 
-    return;
+    return seen;
 }
 
 
@@ -4279,7 +4346,7 @@ void drawSegment(FrameBuffer* clipping, Segment* seg, Player* pov)
             drawData.ceilingColor   = seg->sectorRight->ceilingColor;
             drawData.textureID      = seg->middle->textureID;
 
-            drawWall(&drawData, SCREENXPOS, SCREENYPOS, SCREENWIDTH, SCREENHEIGHT);
+            seg->seen |= drawWall(&drawData, SCREENXPOS, SCREENYPOS, SCREENWIDTH, SCREENHEIGHT);
         }
         else //SKYBOX WALL
         {
@@ -4300,7 +4367,7 @@ void drawSegment(FrameBuffer* clipping, Segment* seg, Player* pov)
             drawData.ceilingColor   = seg->sectorRight->ceilingColor;
             drawData.textureID      = seg->middle->textureID;
 
-            drawPortalClipSkyBox(&drawData, SCREENXPOS, SCREENYPOS, SCREENWIDTH, SCREENHEIGHT);
+            seg->seen |= drawPortalClipSkyBox(&drawData, SCREENXPOS, SCREENYPOS, SCREENWIDTH, SCREENHEIGHT);
         }
     }
     else //PORTAL`
@@ -4338,7 +4405,7 @@ void drawSegment(FrameBuffer* clipping, Segment* seg, Player* pov)
             }
             else
             {
-                drawPortalClipSkyBox(&drawData, SCREENXPOS, SCREENYPOS, SCREENWIDTH, SCREENHEIGHT);
+                seg->seen |= drawPortalClipSkyBox(&drawData, SCREENXPOS, SCREENYPOS, SCREENWIDTH, SCREENHEIGHT);
             }
         }
         else if (floorHeightFront >= floorHeightBack)
@@ -4362,7 +4429,7 @@ void drawSegment(FrameBuffer* clipping, Segment* seg, Player* pov)
             drawData.floorColor     = seg->sectorRight->floorColor;
             drawData.ceilingColor   = seg->sectorRight->ceilingColor;
 
-            drawPortalTop(&drawData, SCREENXPOS, SCREENYPOS, SCREENWIDTH, SCREENHEIGHT);
+            seg->seen |= drawPortalTop(&drawData, SCREENXPOS, SCREENYPOS, SCREENWIDTH, SCREENHEIGHT);
 
             drawData.zBottom        = floorHeightFront;
 
@@ -4372,7 +4439,7 @@ void drawSegment(FrameBuffer* clipping, Segment* seg, Player* pov)
             }
             else
             {
-                drawPortalClipBottomSkyBox(&drawData, SCREENXPOS, SCREENYPOS, SCREENWIDTH, SCREENHEIGHT);
+               seg->seen |= drawPortalClipBottomSkyBox(&drawData, SCREENXPOS, SCREENYPOS, SCREENWIDTH, SCREENHEIGHT);
             }
         }
         else if(ceilingHeightFront <= ceilingHeightBack)
@@ -4394,7 +4461,7 @@ void drawSegment(FrameBuffer* clipping, Segment* seg, Player* pov)
             drawData.floorColor     = seg->sectorRight->floorColor;
             drawData.ceilingColor   = seg->sectorRight->ceilingColor;
 
-            drawPortalBottom(&drawData, SCREENXPOS, SCREENYPOS, SCREENWIDTH, SCREENHEIGHT);
+            seg->seen |= drawPortalBottom(&drawData, SCREENXPOS, SCREENYPOS, SCREENWIDTH, SCREENHEIGHT);
 
             drawData.zTop           = ceilingHeightFront;
 
@@ -4404,7 +4471,7 @@ void drawSegment(FrameBuffer* clipping, Segment* seg, Player* pov)
             }
             else
             {
-                drawPortalClipTopSkyBox(&drawData, SCREENXPOS, SCREENYPOS, SCREENWIDTH, SCREENHEIGHT);
+                seg->seen |= drawPortalClipTopSkyBox(&drawData, SCREENXPOS, SCREENYPOS, SCREENWIDTH, SCREENHEIGHT);
             }
         }
         else
@@ -4428,7 +4495,7 @@ void drawSegment(FrameBuffer* clipping, Segment* seg, Player* pov)
 
             if(seg->isSkyBox == false)
             {
-                drawPortal(
+                seg->seen |= drawPortal(
                     &drawData,
                     seg->sectorLeft->floorHeight,
                     seg->sectorLeft->ceilingHeight,
@@ -4441,7 +4508,7 @@ void drawSegment(FrameBuffer* clipping, Segment* seg, Player* pov)
             }
             else
             {
-                drawPortalSkyBox(
+                seg->seen |= drawPortalSkyBox(
                     &drawData,
                     seg->sectorLeft->floorHeight,
                     seg->sectorLeft->ceilingHeight,
@@ -4655,7 +4722,10 @@ void drawBspLeafMap(BspLeaf* leaf, Player* pov, float scale)
     Segment** segList = leaf->segList;
     while(*segList != NULL)
     {
-        drawMapSegment(*segList, pov, scale);
+        if((*segList) -> seen)
+        {
+            drawMapSegment(*segList, pov, scale);
+        }
         segList += segSize;
     }
 
