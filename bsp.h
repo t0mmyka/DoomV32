@@ -241,6 +241,12 @@ RayHit* rayCastBsp(BspBranch* currentNode, Ray* ray, float height, RayHit* retur
 
     RayHit* returnHit = NULL;
 
+    //Check for zero length vector
+    if(dist(ray->dx, ray->dy) == 0.0)
+    {
+        return NULL;
+    }
+
     if(currentNode->leaf != NULL)
     {
         int       segSize  = sizeof(Segment*);
@@ -430,9 +436,10 @@ void movePlayer(Player* person, BspBranch* collisionMap)
     );
 
 
-    if(person->xSpeed != 0.0 || person->ySpeed != 0.0)
+    float speed = dist(person->xSpeed, person->ySpeed);
+
+    if(speed != 0.0)
     {
-        float speed = dist(person->xSpeed, person->ySpeed);
 
         motion.dx = person->xSpeed;
         motion.dy = person->ySpeed;
