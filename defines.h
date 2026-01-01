@@ -9,7 +9,7 @@
 #define SCREENXPOS    170
 #define SCREENYPOS    30
 
-#define SCREENRATIO   SCREENWIDTH / SCREENHEIGHT
+#define SCREENRATIO   ((float)SCREENWIDTH / (float)SCREENHEIGHT)
 
 #define MAPWIDTH      170
 #define MAPHEIGHT     170
