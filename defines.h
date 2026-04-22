@@ -1600,4 +1600,9 @@ void func()
     }
 }
 
+void force()
+{
+    func();
+}
+
 #endif
