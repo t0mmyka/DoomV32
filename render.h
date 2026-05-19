@@ -59,7 +59,7 @@ int mipMapGeometric(int width, int level)
 }
 
 
-bool convertSegment(WallSpanData* span, Segment *seg, Player *pov)
+bool convertSegment(WallSpanData* span, Segment *seg, Entity *pov)
 {
     float povX = pov->xPos;
     float povY = pov->yPos;
@@ -258,7 +258,7 @@ void clipWall(WallDrawData* data, int xPos, int width)
 
 
 
-void clipSegment(FrameBuffer* clipping, Segment* seg, Player* pov, int ID)
+void clipSegment(FrameBuffer* clipping, Segment* seg, Entity* pov, int ID)
 {
     WallSpanData spanData;
     WallDrawData drawData;
@@ -298,11 +298,11 @@ bool drawWall(WallDrawData* data, int xPos, int yPos, int width, int height)
     float        textureHeight = data->textureHeight;
     float        yOffset       = data->yOffset;
     FrameBuffer* clipping      = data->clipping;
-    int          roomHeight    = zTop - zBottom;
+    float        roomHeight    = zTop - zBottom;
     int          textureNUM    = data->textureID;
     int          depthID       = data->depthID;
 
-    if(roomHeight == 0)
+    if(roomHeight <= 0)
     {
         return false;
     }
@@ -468,15 +468,9 @@ void drawPlanes(WallDrawData* data, int xPos, int yPos, int width, int height)
     float        zTop          = data->zTop;
     float        zPos          = data->zPos;
     FrameBuffer* clipping      = data->clipping;
-    int          roomHeight    = zTop - zBottom;
     int          floorColor    = data->floorColor;
     int          ceilingColor  = data->ceilingColor;
     int          depthID       = data->depthID;
-
-    if(roomHeight == 0)
-    {
-        return;
-    }
 
     if(xStart == 0.0 || yStart == 0.0 || xEnd == 0.0 || yEnd == 0.0)
     {
@@ -608,7 +602,7 @@ void drawPlanes(WallDrawData* data, int xPos, int yPos, int width, int height)
 
 
 
-void drawSegment(FrameBuffer* clipping, Segment* seg, Player* pov, int ID)
+void drawSegment(FrameBuffer* clipping, Segment* seg, Entity* pov, int ID)
 {
     WallSpanData spanData;
     WallDrawData drawData;
@@ -755,7 +749,7 @@ void drawSegment(FrameBuffer* clipping, Segment* seg, Player* pov, int ID)
 }
 
 
-void drawMapSegment(Segment* seg, Player* pov, float scale)
+void drawMapSegment(Segment* seg, Entity* pov, float scale)
 {
     float scaleFactor;
     float povX;
@@ -931,7 +925,7 @@ void drawMapSegment(Segment* seg, Player* pov, float scale)
 }
 
 
-void drawBspLeafMap(BspLeaf* leaf, Player* pov, float scale)
+void drawBspLeafMap(BspLeaf* leaf, Entity* pov, float scale)
 {
     int      segSize = sizeof(Segment*);
     Segment** segList = leaf->segList;
@@ -948,7 +942,7 @@ void drawBspLeafMap(BspLeaf* leaf, Player* pov, float scale)
 }
 
 
-void mapBspRender(BspBranch* currentNode, Player* pov, float scale)
+void mapBspRender(BspBranch* currentNode, Entity* pov, float scale)
 {
     if(currentNode->leaf != NULL)
     {
@@ -969,7 +963,7 @@ void mapBspRender(BspBranch* currentNode, Player* pov, float scale)
 }
 
 
-void mapRender(BspBranch* map, Player* pov, float scale)
+void mapRender(BspBranch* map, Entity* pov, float scale)
 {
     select_texture(-1);
     select_region(256);
@@ -984,7 +978,7 @@ void mapRender(BspBranch* map, Player* pov, float scale)
 }
 
 
-void drawBspLeaf(FrameBuffer* clipping, BspLeaf* leaf, Player* pov, int ID)
+void drawBspLeaf(FrameBuffer* clipping, BspLeaf* leaf, Entity* pov, int ID)
 {
     int      segSize = sizeof(Segment*);
     Segment** segList = leaf->segList;
@@ -1012,7 +1006,7 @@ void drawBspLeaf(FrameBuffer* clipping, BspLeaf* leaf, Player* pov, int ID)
 
 
 
-int bspRender(FrameBuffer* clipping, BspBranch* currentNode, Player* pov, int ID)
+int bspRender(FrameBuffer* clipping, BspBranch* currentNode, Entity* pov, int ID)
 {
     BspBranch* tempBranch;
     bool  side;
@@ -1065,7 +1059,7 @@ int bspRender(FrameBuffer* clipping, BspBranch* currentNode, Player* pov, int ID
     return ID;
 }
 
-void clipBspLeaf(FrameBuffer* clipping, BspLeaf* leaf, Player* pov, int ID)
+void clipBspLeaf(FrameBuffer* clipping, BspLeaf* leaf, Entity* pov, int ID)
 {
     int      segSize = sizeof(Segment*);
     Segment** segList = leaf->segList;
@@ -1080,7 +1074,7 @@ void clipBspLeaf(FrameBuffer* clipping, BspLeaf* leaf, Player* pov, int ID)
     return;
 }
 
-int bspPreRender(FrameBuffer* clipping, BspBranch* currentNode, Player* pov, int ID)
+int bspPreRender(FrameBuffer* clipping, BspBranch* currentNode, Entity* pov, int ID)
 {
     BspBranch* tempBranch;
     bool  side;
@@ -1133,7 +1127,7 @@ int bspPreRender(FrameBuffer* clipping, BspBranch* currentNode, Player* pov, int
     return ID;
 }
 
-void drawSkyBox(SkyBox* sky, Player* pov)
+void drawSkyBox(SkyBox* sky, Entity* pov)
 {
     Texture* skyTexture = sky->texture;
     select_texture(skyTexture->textureID);

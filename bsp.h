@@ -371,7 +371,7 @@ RayHit* rayCastBsp(BspBranch* currentNode, Ray* ray, float height, RayHit* retur
 
 }
 
-void areBranchesVisable(BspBranch* branch, Player* pov, bool* truthValues)
+void areBranchesVisable(BspBranch* branch, Entity* pov, bool* truthValues)
 {
     float relativeAngle = branch->angle - pov->direction;
 
@@ -416,7 +416,7 @@ void areBranchesVisable(BspBranch* branch, Player* pov, bool* truthValues)
     }
 }
 
-void movePlayer(Player* person, BspBranch* collisionMap)
+void moveEntity(Entity* person, BspBranch* collisionMap)
 {
     Ray     motion;
     RayHit  hitData;
@@ -511,7 +511,7 @@ void movePlayer(Player* person, BspBranch* collisionMap)
             person->ySpeed = remaining * intersect->wall->dy
                            * (1.0 - PWALLFRICTION);
 
-            movePlayer(person, collisionMap);
+            moveEntity(person, collisionMap);
         }
         else
         {
@@ -530,9 +530,9 @@ void movePlayer(Player* person, BspBranch* collisionMap)
 }
 
 
-void playerMovement(Player* person, BspBranch* collisionMap)
+void entityMovement(Entity* person, BspBranch* collisionMap)
 {
-    //Turn player
+    //Turn entity
     if(gamepad_button_b() > 0)
         person->direction += 0.001 * gamepad_button_b();
     if(gamepad_button_a() > 0)
@@ -594,7 +594,7 @@ void playerMovement(Player* person, BspBranch* collisionMap)
         person->ySpeed = PMAXSPEED * sin(angle);
     }
 
-    movePlayer(person, collisionMap);
+    moveEntity(person, collisionMap);
 }
 
 

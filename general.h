@@ -9,7 +9,7 @@ union data
     float fl;
 };
 
-struct Player
+struct Entity
 {
     float xPos;
     float yPos;

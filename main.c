@@ -21,7 +21,7 @@ void main(void)
     float mapScale = 1.0;
 
     int         TIME;
-    Player      user;
+    Entity      user;
     Texture     wallTexture;
     Texture     testTexture;
     Texture     skyTexture;
@@ -464,7 +464,7 @@ void main(void)
         clear_screen(color_black);
         drawSkyBox(&plainSky, &user);
 
-        playerMovement(&user, &rootNode);
+        entityMovement(&user, &rootNode);
 
         //user.camZ += 0.05 * sin((float)TIME / 30.0);
 
