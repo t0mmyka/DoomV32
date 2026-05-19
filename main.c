@@ -26,9 +26,8 @@ void main(void)
     Texture     testTexture;
     Texture     skyTexture;
     SkyBox      plainSky;
-    FrameBuffer drawClip;
+    FrameBuffer drawDepth;
     FrameBuffer cleanBuffer;
-    int[SCREENWIDTH] filledFastClipping;
     Sector      Room0;
     Sector      Room1;
     Sector      Room2;
@@ -62,6 +61,7 @@ void main(void)
     BspBranch   node5;
     BspBranch   node6;
     BspBranch   node7;
+    int         maxDepth;
 
     int[732] text;
 
@@ -94,15 +94,9 @@ void main(void)
 
     for(int i = 0; i < SCREENWIDTH; i++)
     {
-        drawClip.fast[i] = false;
-        filledFastClipping[i] = true;
+        drawDepth.data[i] = 0;
     }
-    for(int i = 0; i < SCREENWIDTH*2; i += 2)
-    {
-        drawClip.full[i]   = SCREENHEIGHT + SCREENYPOS;
-        drawClip.full[i+1] = SCREENYPOS;
-    }
-    cleanBuffer = drawClip;
+    cleanBuffer = drawDepth;
 
     Room0.floorHeight   =  0.0;
     Room0.ceilingHeight = 30.0;
@@ -449,7 +443,7 @@ void main(void)
     node6.rightNode  = NULL;
     node6.leftNode   = NULL;
     node6.parentNode = &node5;
-    node6.leaf       = &leaf3;
+    node6.leaf       = NULL;//&leaf3;
     node6.sector     = &Room0;
 
     node7.Name       = "node7";
@@ -481,8 +475,9 @@ void main(void)
         Room2.ceilingHeight = 28.0  +   5.0*sin((float)TIME / 55.0);
         wall8.xOffset       = 128.0 + 128.0*sin((float)TIME / 360.0);
 
-        bspRender(filledFastClipping, &drawClip, &rootNode, &user);
-        drawClip = cleanBuffer;
+        maxDepth = bspPreRender(&drawDepth, &rootNode, &user, 1) - 1;
+        bspRender(&drawDepth, &rootNode, &user, maxDepth);
+        drawDepth = cleanBuffer;
         if(gamepad_button_x() > 0)
         {
             mapScale *= 1.01;
@@ -515,6 +510,10 @@ void main(void)
         ftoa(user.zSpeed, text);
         print_at(480, 150, "dZ:");
         print_at(510, 150, text);
+
+        itoa(maxDepth, text, 10);
+        print_at(480, 180, "MD:");
+        print_at(510, 180, text);
 
         TIME++;
 
