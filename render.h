@@ -350,8 +350,8 @@ bool drawWall(WallDrawData* data, int xPos, int yPos, int width, int height)
     float inverseXend   = 1.0 / xEnd;
     float inverseXstep  =  (inverseXend - inverseXstart) / onScreenWidth;
 
-    int textureTrueTop    = floor(textureHeight - yOffset - roomHeight);
-    int textureTrueBottom = ceil(textureHeight - yOffset) - 1;
+    int textureTrueBottom = round(textureHeight - yOffset) - 1;
+    int textureTrueTop    = textureTrueBottom - max(round(roomHeight), 1) + 1;
 
     int pixelHeight = textureTrueBottom - textureTrueTop + 1;
 
