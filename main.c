@@ -20,11 +20,15 @@ void main(void)
 
     float mapScale = 1.0;
 
+    int         maxDepth;
     int         TIME;
     Entity      user;
+    Entity[1]   entityList;
+    Entity*[1]  entityMap;
     Texture     wallTexture;
     Texture     testTexture;
     Texture     skyTexture;
+    Texture     ballTexture;
     SkyBox      plainSky;
     FrameBuffer drawDepth;
     FrameBuffer cleanBuffer;
@@ -61,21 +65,36 @@ void main(void)
     BspBranch   node5;
     BspBranch   node6;
     BspBranch   node7;
-    int         maxDepth;
 
     int[732] text;
 
-    user.xPos =      5.00;
-    user.yPos =      5.00;
-    user.zPos =      9.00;
-    user.xSpeed =    0.00;
-    user.ySpeed =    0.00;
-    user.zSpeed =    0.00;
-    user.direction = 0.00;
-    user.dirSin = sin(user.direction);
-    user.dirCos = cos(user.direction);
-    user.height =   10.00;
-    user.camZ   =    8.00;
+    user.xPos      =   5.00;
+    user.yPos      =   5.00;
+    user.zPos      =   9.00;
+    user.xSpeed    =   0.00;
+    user.ySpeed    =   0.00;
+    user.zSpeed    =   0.00;
+    user.direction =   0.00;
+    user.dirSin    = sin(user.direction);
+    user.dirCos    = cos(user.direction);
+    user.height    =  10.00;
+    user.camZ      =   8.00;
+    user.sprites   =  NULL;
+
+    entityList[0].xPos      = 100.00;
+    entityList[0].yPos      =  50.00;
+    entityList[0].zPos      =   0.00;
+    entityList[0].xSpeed    =   0.00;
+    entityList[0].ySpeed    =   0.00;
+    entityList[0].zSpeed    =   0.00;
+    entityList[0].direction =   0.00;
+    entityList[0].dirSin    = sin(entityList[0].direction);
+    entityList[0].dirCos    = cos(entityList[0].direction);
+    entityList[0].height    =  20.00;
+    entityList[0].camZ      =  10.00;
+    entityList[0].sprites   = &ballTexture;
+
+    entityMap[0] = &entityList[0];
 
     wallTexture.textureID = 1;
     wallTexture.width  = 32;
@@ -84,6 +103,10 @@ void main(void)
     testTexture.textureID = 0;
     testTexture.width  = 32;
     testTexture.height = 32;
+
+    ballTexture.textureID = 2;
+    ballTexture.width  = 32;
+    ballTexture.height = 32;
 
     skyTexture.textureID = 3;
     skyTexture.width  = 400;
@@ -334,13 +357,21 @@ void main(void)
     testwall2.xOffset     =    0.0;
     testwall2.seen        = false;
 
-    leaf0.segList = &(leaf0List[0]);
+    leaf0.segList     = &(leaf0List[0]);
+    leaf0.entities    = &entityMap[0];
+    leaf0.entityCount = 1;
 
-    leaf1.segList = &(leaf1List[0]);
+    leaf1.segList     = &(leaf1List[0]);
+    leaf1.entities    = NULL;
+    leaf1.entityCount = 0;
 
-    leaf2.segList = &(leaf2List[0]);
+    leaf2.segList     = &(leaf2List[0]);
+    leaf2.entities    = NULL;
+    leaf2.entityCount = 0;
 
-    leaf3.segList = &(leaf3List[0]);
+    leaf3.segList     = &(leaf3List[0]);
+    leaf3.entities    = NULL;
+    leaf3.entityCount = 0;
 
     rootNode.Name       = "root";
     rootNode.HyperX     =   76.8;

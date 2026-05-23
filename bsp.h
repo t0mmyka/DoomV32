@@ -4,14 +4,6 @@
 #include "defines.h"
 #include "general.h"
 
-struct Texture
-{
-    int textureID;
-    int width;
-    int height;
-
-};
-
 struct SkyBox
 {
     Texture* texture;
@@ -50,6 +42,8 @@ struct Segment
 struct BspLeaf
 {
     Segment** segList;
+    int       entityCount;
+    Entity**  entities;
 };
 
 struct BspBranch

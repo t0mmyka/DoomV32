@@ -9,19 +9,28 @@ union data
     float fl;
 };
 
+struct Texture
+{
+    int textureID;
+    int width;
+    int height;
+
+};
+
 struct Entity
 {
-    float xPos;
-    float yPos;
-    float zPos;
-    float xSpeed;
-    float ySpeed;
-    float zSpeed;
-    float direction;
-    float dirSin;
-    float dirCos;
-    float height;
-    float camZ;
+    float    xPos;
+    float    yPos;
+    float    zPos;
+    float    xSpeed;
+    float    ySpeed;
+    float    zSpeed;
+    float    direction;
+    float    dirSin;
+    float    dirCos;
+    float    height;
+    float    camZ;
+    Texture *sprites;
 };
 
 struct Ray

@@ -59,6 +59,46 @@ int mipMapGeometric(int width, int level)
 }
 
 
+
+
+
+
+void drawBillboard(Entity *billboard, Entity *pov)
+{
+    Texture* sprite;
+
+    float posX = pov->dirCos * (billboard->xPos - pov->xPos)
+               + pov->dirSin * (billboard->yPos - pov->yPos);
+
+    float posY = pov->dirCos * (billboard->yPos - pov->yPos)
+               - pov->dirSin * (billboard->xPos - pov->xPos);
+
+    float posZ = billboard->zPos - pov->zPos - pov->camZ;
+
+    sprite = &billboard->sprites[0];
+
+    float scale = (billboard->height / posX) / 2.0 * SCREENRATIO;
+          scale = scale * SCREENHEIGHT / sprite->height;
+
+    float screenX = (1.0 - (posY/posX)) / 2.0;
+          screenX = SCREENWIDTH * screenX + SCREENXPOS;
+    float screenY = (1.0 - (posZ/posX)) / 2.0 * SCREENRATIO;
+          screenY = SCREENHEIGHT * screenY + SCREENYPOS;
+
+    set_multiply_color(color_white);
+    select_texture(sprite->textureID);
+    select_region(0);
+    define_region(0, 0, sprite->width, sprite->height, sprite->width/2, sprite->height);
+    set_drawing_scale(scale, scale);
+
+    draw_region_zoomed_at(screenX, screenY);
+}
+
+
+
+
+
+
 bool convertSegment(WallSpanData* span, Segment *seg, Entity *pov)
 {
     float povX = pov->xPos;
@@ -981,6 +1021,8 @@ void mapRender(BspBranch* map, Entity* pov, float scale)
 void drawBspLeaf(FrameBuffer* clipping, BspLeaf* leaf, Entity* pov, int ID)
 {
     int      segSize = sizeof(Segment*);
+    int      entSize = sizeof(Entity*);
+
     Segment** segList = leaf->segList;
     while(*segList != NULL)
     {
@@ -989,6 +1031,13 @@ void drawBspLeaf(FrameBuffer* clipping, BspLeaf* leaf, Entity* pov, int ID)
             drawSegment(clipping, *segList, pov, ID);
         }
         segList += segSize;
+    }
+
+    Entity** entityList = leaf->entities;
+    for(int i = 0; i < leaf->entityCount; i++)
+    {
+        drawBillboard(*entityList, pov);
+        entityList += entSize;
     }
 
     segList = leaf->segList;
