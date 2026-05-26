@@ -41,9 +41,8 @@ struct Segment
 
 struct BspLeaf
 {
-    Segment** segList;
-    int       entityCount;
-    Entity**  entities;
+    Segment**   segList;
+    EntityList *entities;
 };
 
 struct BspBranch
@@ -523,15 +522,55 @@ void moveEntity(Entity* person, BspBranch* collisionMap)
     person->zPos = fClamp(person->zPos, floorHeight, ceilingHeight - person->height);
 }
 
+MovementData *getInput()
+{
+    MovementData input;
+    int left  = gamepad_button_b();
+    int right = gamepad_button_a();
+    int up;
+    int down;
 
-void entityMovement(Entity* person, BspBranch* collisionMap)
+    if(left > 0 && right > 0)
+    {
+        if(left < right)
+            input.turn =  0.001 * left;
+        else if(right < left)
+            input.turn = -0.001 * right;
+    }
+    else if(left > 0)
+        input.turn =  0.001 * left;
+    else if(right > 0)
+        input.turn = -0.001 * right;
+    else
+        input.turn = 0.0;
+
+    left  = min(gamepad_left(),  5);
+    right = min(gamepad_right(), 5);
+    up    = min(gamepad_up(),    5);
+    down  = min(gamepad_down(),  5);
+
+    input.sideways = 0.0;
+    input.forwards = 0.0;
+    input.jump     = 0.0;
+
+    if(left  > 0)
+        input.sideways -= PACCELERATION * left;
+    if(right > 0)
+        input.sideways += PACCELERATION * right;
+    if(up    > 0)
+        input.forwards += PACCELERATION * up;
+    if(down  > 0)
+        input.forwards -= PACCELERATION * down;
+    if(gamepad_button_l() > 0)
+        input.jump = 1.5;
+
+    return &input;
+}
+
+void entityMovement(Entity* person, BspBranch* collisionMap, MovementData* move)
 {
     //Turn entity
-    if(gamepad_button_b() > 0)
-        person->direction += 0.001 * gamepad_button_b();
-    if(gamepad_button_a() > 0)
-        person->direction -= 0.001 * gamepad_button_a();
-
+    person->direction += move->turn;
     person->dirCos = cos(person->direction);
     person->dirSin = sin(person->direction);
 
@@ -541,40 +580,16 @@ void entityMovement(Entity* person, BspBranch* collisionMap)
     person->zSpeed *= 1.0 - PFRICTION;
 
     //Apply inputs
-    if(gamepad_left() > 0)
-    {
-        person->xSpeed -= (float)min(gamepad_left(), 5)
-                     * person->dirSin * PACCELERAION;
-        person->ySpeed += (float)min(gamepad_left(), 5)
-                     * person->dirCos * PACCELERAION;
-    }
-    if(gamepad_right() > 0)
-    {
-        person->xSpeed += (float)min(gamepad_right(), 5)
-                     * person->dirSin * PACCELERAION;
-        person->ySpeed -= (float)min(gamepad_right(), 5)
-                     * person->dirCos * PACCELERAION;
-    }
-    if(gamepad_up() > 0)
-    {
-        person->xSpeed += (float)min(gamepad_up(), 5)
-                     * person->dirCos * PACCELERAION;
-        person->ySpeed += (float)min(gamepad_up(), 5)
-                     * person->dirSin * PACCELERAION;
-    }
-    if(gamepad_down() > 0)
-    {
-        person->xSpeed -= (float)min(gamepad_down(), 5)
-                     * person->dirCos * PACCELERAION;
-        person->ySpeed -= (float)min(gamepad_down(), 5)
-                     * person->dirSin * PACCELERAION;
-    }
-    if(gamepad_button_l() > 0)
+    person->xSpeed += move->forwards * person->dirCos;
+    person->xSpeed += move->sideways * person->dirSin;
+    person->ySpeed += move->forwards * person->dirSin;
+    person->ySpeed -= move->sideways * person->dirCos;
+    if(move->jump > 0.0)
     {
         BspBranch* section = locateBsp(collisionMap, person->xPos, person->yPos);
         float floorHeight = section->sector->floorHeight;
         if(person->zPos - floorHeight < PJUMPDIST)
-            person->zSpeed += 1.5;
+            person->zSpeed += move->jump;
     }
 
     //Apply gravity

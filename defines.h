@@ -21,7 +21,7 @@
 #define MOVERATIO   0.5
 
 #define PWALLFRICTION 0.25
-#define PACCELERAION  0.10
+#define PACCELERATION 0.10
 #define PMAXSPEED     0.75
 #define PFRICTION     0.10
 #define PJUMPDIST     0.20

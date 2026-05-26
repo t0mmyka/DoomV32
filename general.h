@@ -43,6 +43,21 @@ struct Ray
     float dz;
 };
 
+struct EntityList
+{
+    EntityList *prev;
+    Entity     *item;
+    EntityList *next;
+};
+
+struct MovementData
+{
+    float turn;
+    float forwards;
+    float sideways;
+    float jump;
+};
+
 void inputWait()
 {
     while(true)

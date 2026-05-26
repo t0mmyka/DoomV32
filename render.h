@@ -1021,7 +1021,6 @@ void mapRender(BspBranch* map, Entity* pov, float scale)
 void drawBspLeaf(FrameBuffer* clipping, BspLeaf* leaf, Entity* pov, int ID)
 {
     int      segSize = sizeof(Segment*);
-    int      entSize = sizeof(Entity*);
 
     Segment** segList = leaf->segList;
     while(*segList != NULL)
@@ -1033,11 +1032,11 @@ void drawBspLeaf(FrameBuffer* clipping, BspLeaf* leaf, Entity* pov, int ID)
         segList += segSize;
     }
 
-    Entity** entityList = leaf->entities;
-    for(int i = 0; i < leaf->entityCount; i++)
+    EntityList* listNode = leaf->entities;
+    while(listNode != NULL)
     {
-        drawBillboard(*entityList, pov);
-        entityList += entSize;
+        drawBillboard(listNode->item, pov);
+        listNode = listNode->next;
     }
 
     segList = leaf->segList;
