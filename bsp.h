@@ -409,19 +409,20 @@ void areBranchesVisable(BspBranch* branch, Entity* pov, bool* truthValues)
     }
 }
 
-void moveEntity(Entity* person, BspBranch* collisionMap)
+void moveEntity(Entity* person, BspBranch* collisionMap, EntityList* link)
 {
     Ray     motion;
     RayHit  hitData;
     RayHit* intersect;
 
-    BspBranch* section;
+    BspBranch* sectionOld;
+    BspBranch* sectionNew;
     float floorHeight;
     float ceilingHeight;
 
-    section = locateBsp(collisionMap, person->xPos, person->yPos);
-    floorHeight = section->sector->floorHeight;
-    ceilingHeight = section->sector->ceilingHeight;
+    sectionOld    = locateBsp(collisionMap, person->xPos, person->yPos);
+    floorHeight   = sectionOld->sector->floorHeight;
+    ceilingHeight = sectionOld->sector->ceilingHeight;
 
     person->zSpeed = fClamp(
         person->zSpeed,
@@ -504,7 +505,8 @@ void moveEntity(Entity* person, BspBranch* collisionMap)
             person->ySpeed = remaining * intersect->wall->dy
                            * (1.0 - PWALLFRICTION);
 
-            moveEntity(person, collisionMap);
+            moveEntity(person, collisionMap, link);
+            sectionOld = locateBsp(collisionMap, person->xPos, person->yPos);
         }
         else
         {
@@ -513,18 +515,38 @@ void moveEntity(Entity* person, BspBranch* collisionMap)
         }
     }
 
-    section = locateBsp(collisionMap, person->xPos, person->yPos);
-    floorHeight = section->sector->floorHeight;
-    ceilingHeight = section->sector->ceilingHeight;
+    sectionNew = locateBsp(collisionMap, person->xPos, person->yPos);
+    floorHeight = sectionNew->sector->floorHeight;
+    ceilingHeight = sectionNew->sector->ceilingHeight;
 
     person->zPos += person->zSpeed;
 
     person->zPos = fClamp(person->zPos, floorHeight, ceilingHeight - person->height);
+
+    if(link != NULL)
+    {
+        if(sectionNew != sectionOld)
+        {
+            if(sectionOld->leaf->entities == link)
+                sectionOld->leaf->entities = link->next;
+            removeLink(link);
+
+            insertLink(sectionNew->leaf->entities, link);
+            sectionNew->leaf->entities = link;
+        }
+    }
 }
 
-MovementData *getInput()
+void setInput(MovementData *input, float turn, float forwards, float sideways, float jump)
 {
-    MovementData input;
+    input->turn     = turn;
+    input->forwards = forwards;
+    input->sideways = sideways;
+    input->jump     = jump;
+}
+
+void getInput(MovementData *input)
+{
     int left  = gamepad_button_b();
     int right = gamepad_button_a();
     int up;
@@ -533,41 +555,39 @@ MovementData *getInput()
     if(left > 0 && right > 0)
     {
         if(left < right)
-            input.turn =  0.001 * left;
+            input->turn =  0.001 * left;
         else if(right < left)
-            input.turn = -0.001 * right;
+            input->turn = -0.001 * right;
     }
     else if(left > 0)
-        input.turn =  0.001 * left;
+        input->turn =  0.001 * left;
     else if(right > 0)
-        input.turn = -0.001 * right;
+        input->turn = -0.001 * right;
     else
-        input.turn = 0.0;
+        input->turn = 0.0;
 
     left  = min(gamepad_left(),  5);
     right = min(gamepad_right(), 5);
     up    = min(gamepad_up(),    5);
     down  = min(gamepad_down(),  5);
 
-    input.sideways = 0.0;
-    input.forwards = 0.0;
-    input.jump     = 0.0;
+    input->sideways = 0.0;
+    input->forwards = 0.0;
+    input->jump     = 0.0;
 
     if(left  > 0)
-        input.sideways -= PACCELERATION * left;
+        input->sideways -= PACCELERATION * left;
     if(right > 0)
-        input.sideways += PACCELERATION * right;
+        input->sideways += PACCELERATION * right;
     if(up    > 0)
-        input.forwards += PACCELERATION * up;
+        input->forwards += PACCELERATION * up;
     if(down  > 0)
-        input.forwards -= PACCELERATION * down;
+        input->forwards -= PACCELERATION * down;
     if(gamepad_button_l() > 0)
-        input.jump = 1.5;
-
-    return &input;
+        input->jump = 1.5;
 }
 
-void entityMovement(Entity* person, BspBranch* collisionMap, MovementData* move)
+void entityMovement(Entity* person, BspBranch* collisionMap, MovementData* move, EntityList *link)
 {
     //Turn entity
     person->direction += move->turn;
@@ -596,15 +616,25 @@ void entityMovement(Entity* person, BspBranch* collisionMap, MovementData* move)
     person->zSpeed -= GRAVITY;
 
     //Limit speed
-    if(dist(person->xSpeed, person->ySpeed) > PMAXSPEED)
+    if(dist(person->xSpeed, person->ySpeed) > person->maxSpeed)
     {
         float angle = atan2(person->ySpeed, person->xSpeed);
-        person->xSpeed = PMAXSPEED * cos(angle);
-        person->ySpeed = PMAXSPEED * sin(angle);
+        person->xSpeed = person->maxSpeed * cos(angle);
+        person->ySpeed = person->maxSpeed * sin(angle);
     }
 
-    moveEntity(person, collisionMap);
+    moveEntity(person, collisionMap, link);
 }
 
+void assignEntities(EntityList *things, int count, BspBranch *map)
+{
+    BspBranch *location;
+    for(int i = 0; i < count; i++)
+    {
+        location = locateBsp(map, things[i].item->xPos, things[i].item->yPos);
+        insertLink(location->leaf->entities, &things[i]);
+        location->leaf->entities = &things[i];
+    }
+}
 
 #endif

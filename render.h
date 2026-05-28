@@ -75,6 +75,10 @@ void drawBillboard(Entity *billboard, Entity *pov)
 
     float posZ = billboard->zPos - pov->zPos - pov->camZ;
 
+    if(posX <= 0)
+        return;
+
+
     sprite = &billboard->sprites[0];
 
     float scale = (billboard->height / posX) / 2.0 * SCREENRATIO;
@@ -84,6 +88,12 @@ void drawBillboard(Entity *billboard, Entity *pov)
           screenX = SCREENWIDTH * screenX + SCREENXPOS;
     float screenY = (1.0 - (posZ/posX)) / 2.0 * SCREENRATIO;
           screenY = SCREENHEIGHT * screenY + SCREENYPOS;
+
+    if(screenX + (scale * sprite->width / 2.0) < SCREENXPOS)
+        return;
+
+    if(screenX - (scale * sprite->width / 2.0) > SCREENXPOS + SCREENWIDTH)
+        return;
 
     set_multiply_color(color_white);
     select_texture(sprite->textureID);

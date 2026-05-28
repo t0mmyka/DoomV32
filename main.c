@@ -20,51 +20,52 @@ void main(void)
 
     float mapScale = 1.0;
 
-    int         maxDepth;
-    int         TIME;
-    Entity      user;
-    Entity      ball;
-    EntityList  things;
-    Texture     wallTexture;
-    Texture     testTexture;
-    Texture     skyTexture;
-    Texture     ballTexture;
-    SkyBox      plainSky;
-    FrameBuffer drawDepth;
-    FrameBuffer cleanBuffer;
-    Sector      Room0;
-    Sector      Room1;
-    Sector      Room2;
-    Segment     wall0;
-    Segment     wall1;
-    Segment     wall2;
-    Segment     wall3;
-    Segment     wall4;
-    Segment     wall5;
-    Segment     wall6;
-    Segment     wall7;
-    Segment     wall8;
-    Segment     wall9;
-    Segment     wall10;
-    Segment     testwall1;
-    Segment     testwall2;
-    Segment*[5] leaf0List = {&wall3, &wall0, &wall1, &wall2, NULL};
-    Segment*[3] leaf1List = {&wall5, &wall4, NULL};
-    Segment*[4] leaf2List = {&wall8, &wall6, &wall7, NULL};
-    Segment*[3] leaf3List = {&wall10, &wall9, NULL};
-    BspLeaf     leaf0;
-    BspLeaf     leaf1;
-    BspLeaf     leaf2;
-    BspLeaf     leaf3;
-    BspBranch   rootNode;
-    BspBranch   node0;
-    BspBranch   node1;
-    BspBranch   node2;
-    BspBranch   node3;
-    BspBranch   node4;
-    BspBranch   node5;
-    BspBranch   node6;
-    BspBranch   node7;
+    int          maxDepth;
+    int          TIME;
+    MovementData movement;
+    Entity       user;
+    Entity       ball;
+    EntityList   things;
+    Texture      wallTexture;
+    Texture      testTexture;
+    Texture      skyTexture;
+    Texture      ballTexture;
+    SkyBox       plainSky;
+    FrameBuffer  drawDepth;
+    FrameBuffer  cleanBuffer;
+    Sector       Room0;
+    Sector       Room1;
+    Sector       Room2;
+    Segment      wall0;
+    Segment      wall1;
+    Segment      wall2;
+    Segment      wall3;
+    Segment      wall4;
+    Segment      wall5;
+    Segment      wall6;
+    Segment      wall7;
+    Segment      wall8;
+    Segment      wall9;
+    Segment      wall10;
+    Segment      testwall1;
+    Segment      testwall2;
+    Segment*[5]  leaf0List = {&wall3, &wall0, &wall1, &wall2, NULL};
+    Segment*[3]  leaf1List = {&wall5, &wall4, NULL};
+    Segment*[4]  leaf2List = {&wall8, &wall6, &wall7, NULL};
+    Segment*[3]  leaf3List = {&wall10, &wall9, NULL};
+    BspLeaf      leaf0;
+    BspLeaf      leaf1;
+    BspLeaf      leaf2;
+    BspLeaf      leaf3;
+    BspBranch    rootNode;
+    BspBranch    node0;
+    BspBranch    node1;
+    BspBranch    node2;
+    BspBranch    node3;
+    BspBranch    node4;
+    BspBranch    node5;
+    BspBranch    node6;
+    BspBranch    node7;
 
     int[732] text;
 
@@ -74,19 +75,21 @@ void main(void)
     user.xSpeed    =   0.00;
     user.ySpeed    =   0.00;
     user.zSpeed    =   0.00;
+    user.maxSpeed  =   PMAXSPEED;
     user.direction =   0.00;
     user.dirSin    = sin(user.direction);
     user.dirCos    = cos(user.direction);
     user.height    =  10.00;
     user.camZ      =   8.00;
-    user.sprites   =  NULL;
+    user.sprites   =   NULL;
 
-    ball.xPos      = 100.00;
-    ball.yPos      =  50.00;
+    ball.xPos      =  55.00;
+    ball.yPos      =  90.00;
     ball.zPos      =   0.00;
     ball.xSpeed    =   0.00;
     ball.ySpeed    =   0.00;
     ball.zSpeed    =   0.00;
+    ball.maxSpeed  =  10.00;
     ball.direction =   0.00;
     ball.dirSin    = sin(ball.direction);
     ball.dirCos    = cos(ball.direction);
@@ -360,7 +363,7 @@ void main(void)
     testwall2.seen        = false;
 
     leaf0.segList     = &(leaf0List[0]);
-    leaf0.entities    = &things;
+    leaf0.entities    = NULL;
 
     leaf1.segList     = &(leaf1List[0]);
     leaf1.entities    = NULL;
@@ -472,7 +475,7 @@ void main(void)
     node6.rightNode  = NULL;
     node6.leftNode   = NULL;
     node6.parentNode = &node5;
-    node6.leaf       = NULL;//&leaf3;
+    node6.leaf       = &leaf3;
     node6.sector     = &Room0;
 
     node7.Name       = "node7";
@@ -485,15 +488,20 @@ void main(void)
     node7.rightNode  = NULL;
     node7.leftNode   = NULL;
     node7.parentNode = &node5;
-    node7.leaf       = NULL;
+    node7.leaf       = &leaf3;
     node7.sector     = &Room1;
+
+    assignEntities(&things, 1, &rootNode);
 
     while(true)
     {
         clear_screen(color_black);
         drawSkyBox(&plainSky, &user);
 
-        entityMovement(&user, &rootNode, getInput());
+        getInput(&movement);
+        entityMovement(&user, &rootNode, &movement, NULL);
+        setInput(&movement, -0.02, 0.1, 0.0, 0.0);
+        entityMovement(&ball, &rootNode, &movement, &things);
 
         //user.camZ += 0.05 * sin((float)TIME / 30.0);
 

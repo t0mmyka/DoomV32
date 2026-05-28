@@ -25,6 +25,7 @@ struct Entity
     float    xSpeed;
     float    ySpeed;
     float    zSpeed;
+    float    maxSpeed;
     float    direction;
     float    dirSin;
     float    dirCos;
@@ -210,4 +211,32 @@ float fClamp(float input, float min, float max)
     return input;
 }
 
+void removeLink(EntityList *link)
+{
+    if(link == NULL)
+        return;
+
+    if(link->prev != NULL)
+        link->prev->next = link->next;
+
+    if(link->next != NULL)
+        link->next->prev = link->prev;
+
+    link->prev = NULL;
+    link->next = NULL;
+}
+
+void insertLink(EntityList *list, EntityList *item)
+{
+    if(list == NULL || item == NULL)
+        return;
+
+    if(list->prev != NULL)
+        list->prev->next = item;
+
+    item->prev = list->prev;
+    item->next = list;
+
+    list->prev = item;
+}
 #endif
