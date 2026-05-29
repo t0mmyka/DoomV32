@@ -239,4 +239,19 @@ void insertLink(EntityList *list, EntityList *item)
 
     list->prev = item;
 }
+
+void print_int_at(int x, int y, int value, int base)
+{
+    int[33] text;
+    itoa(value, text, base);
+    print_at(x, y, text);
+}
+
+void print_float_at(int x, int y, float value)
+{
+    int[33] text;
+    ftoa(value, text);
+    print_at(x, y, text);
+}
+
 #endif
