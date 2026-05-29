@@ -20,52 +20,54 @@ void main(void)
 
     float mapScale = 1.0;
 
-    int          maxDepth;
-    int          TIME;
-    MovementData movement;
-    Entity       user;
-    Entity       ball;
-    EntityList   things;
-    Texture      wallTexture;
-    Texture      testTexture;
-    Texture      skyTexture;
-    Texture      ballTexture;
-    SkyBox       plainSky;
-    FrameBuffer  drawDepth;
-    FrameBuffer  cleanBuffer;
-    Sector       Room0;
-    Sector       Room1;
-    Sector       Room2;
-    Segment      wall0;
-    Segment      wall1;
-    Segment      wall2;
-    Segment      wall3;
-    Segment      wall4;
-    Segment      wall5;
-    Segment      wall6;
-    Segment      wall7;
-    Segment      wall8;
-    Segment      wall9;
-    Segment      wall10;
-    Segment      testwall1;
-    Segment      testwall2;
-    Segment*[5]  leaf0List = {&wall3, &wall0, &wall1, &wall2, NULL};
-    Segment*[3]  leaf1List = {&wall5, &wall4, NULL};
-    Segment*[4]  leaf2List = {&wall8, &wall6, &wall7, NULL};
-    Segment*[3]  leaf3List = {&wall10, &wall9, NULL};
-    BspLeaf      leaf0;
-    BspLeaf      leaf1;
-    BspLeaf      leaf2;
-    BspLeaf      leaf3;
-    BspBranch    rootNode;
-    BspBranch    node0;
-    BspBranch    node1;
-    BspBranch    node2;
-    BspBranch    node3;
-    BspBranch    node4;
-    BspBranch    node5;
-    BspBranch    node6;
-    BspBranch    node7;
+    int           maxDepth;
+    int           TIME;
+    MovementData  movement;
+    Entity        user;
+    Entity        ball0;
+    Entity        ball1;
+    Entity        ball2;
+    EntityList[3] things;
+    Texture       wallTexture;
+    Texture       testTexture;
+    Texture       skyTexture;
+    Texture       ballTexture;
+    SkyBox        plainSky;
+    FrameBuffer   drawDepth;
+    FrameBuffer   cleanBuffer;
+    Sector        Room0;
+    Sector        Room1;
+    Sector        Room2;
+    Segment       wall0;
+    Segment       wall1;
+    Segment       wall2;
+    Segment       wall3;
+    Segment       wall4;
+    Segment       wall5;
+    Segment       wall6;
+    Segment       wall7;
+    Segment       wall8;
+    Segment       wall9;
+    Segment       wall10;
+    Segment       testwall1;
+    Segment       testwall2;
+    Segment*[5]   leaf0List = {&wall3, &wall0, &wall1, &wall2, NULL};
+    Segment*[3]   leaf1List = {&wall5, &wall4, NULL};
+    Segment*[4]   leaf2List = {&wall8, &wall6, &wall7, NULL};
+    Segment*[3]   leaf3List = {&wall10, &wall9, NULL};
+    BspLeaf       leaf0;
+    BspLeaf       leaf1;
+    BspLeaf       leaf2;
+    BspLeaf       leaf3;
+    BspBranch     rootNode;
+    BspBranch     node0;
+    BspBranch     node1;
+    BspBranch     node2;
+    BspBranch     node3;
+    BspBranch     node4;
+    BspBranch     node5;
+    BspBranch     node6;
+    BspBranch     node7;
 
     int[732] text;
 
@@ -83,23 +85,59 @@ void main(void)
     user.camZ      =   8.00;
     user.sprites   =   NULL;
 
-    ball.xPos      =  55.00;
-    ball.yPos      =  90.00;
-    ball.zPos      =   0.00;
-    ball.xSpeed    =   0.00;
-    ball.ySpeed    =   0.00;
-    ball.zSpeed    =   0.00;
-    ball.maxSpeed  =  10.00;
-    ball.direction =   0.00;
-    ball.dirSin    = sin(ball.direction);
-    ball.dirCos    = cos(ball.direction);
-    ball.height    =  20.00;
-    ball.camZ      =  10.00;
-    ball.sprites   = &ballTexture;
+    ball0.xPos      =  55.00;
+    ball0.yPos      =  90.00;
+    ball0.zPos      =   0.00;
+    ball0.xSpeed    =   0.00;
+    ball0.ySpeed    =   0.00;
+    ball0.zSpeed    =   0.00;
+    ball0.maxSpeed  =  10.00;
+    ball0.direction =   0.00;
+    ball0.dirSin    = sin(ball0.direction);
+    ball0.dirCos    = cos(ball0.direction);
+    ball0.height    =  20.00;
+    ball0.camZ      =  10.00;
+    ball0.sprites   = &ballTexture;
 
-    things.prev = NULL;
-    things.item = &ball;
-    things.next = NULL;
+    ball1.xPos      =  55.00;
+    ball1.yPos      =  90.00;
+    ball1.zPos      =   0.00;
+    ball1.xSpeed    =   0.00;
+    ball1.ySpeed    =   0.00;
+    ball1.zSpeed    =   0.00;
+    ball1.maxSpeed  =  10.00;
+    ball1.direction =   0.00;
+    ball1.dirSin    = sin(ball1.direction);
+    ball1.dirCos    = cos(ball1.direction);
+    ball1.height    =  20.00;
+    ball1.camZ      =  10.00;
+    ball1.sprites   = &ballTexture;
+
+    ball2.xPos      =  55.00;
+    ball2.yPos      =  90.00;
+    ball2.zPos      =   0.00;
+    ball2.xSpeed    =   0.00;
+    ball2.ySpeed    =   0.00;
+    ball2.zSpeed    =   0.00;
+    ball2.maxSpeed  =  10.00;
+    ball2.direction =   0.00;
+    ball2.dirSin    = sin(ball2.direction);
+    ball2.dirCos    = cos(ball2.direction);
+    ball2.height    =  20.00;
+    ball2.camZ      =  10.00;
+    ball2.sprites   = &ballTexture;
+
+    things[0].prev = NULL;
+    things[0].item = &ball0;
+    things[0].next = NULL;
+
+    things[1].prev = NULL;
+    things[1].item = &ball1;
+    things[1].next = NULL;
+
+    things[2].prev = NULL;
+    things[2].item = &ball2;
+    things[2].next = NULL;
 
     wallTexture.textureID = 1;
     wallTexture.width  = 32;
@@ -491,7 +529,7 @@ void main(void)
     node7.leaf       = &leaf3;
     node7.sector     = &Room1;
 
-    assignEntities(&things, 1, &rootNode);
+    assignEntities(things, 3, &rootNode);
 
     while(true)
     {
@@ -500,8 +538,12 @@ void main(void)
 
         getInput(&movement);
         entityMovement(&user, &rootNode, &movement, NULL);
-        setInput(&movement, -0.02, 0.1, 0.0, 0.0);
-        entityMovement(&ball, &rootNode, &movement, &things);
+        setInput(&movement, -0.01, 0.05,  0.0, 0.0);
+        entityMovement(&ball0, &rootNode, &movement, &things[0]);
+        setInput(&movement, -0.01, 0.03,  0.0, 0.0);
+        entityMovement(&ball1, &rootNode, &movement, &things[1]);
+        setInput(&movement, -0.02, 0.02,   0.0, 0.0);
+        entityMovement(&ball2, &rootNode, &movement, &things[2]);
 
         //user.camZ += 0.05 * sin((float)TIME / 30.0);
 
