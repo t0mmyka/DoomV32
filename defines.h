@@ -17,6 +17,9 @@
 #define MAPYPOS       95
 
 
+#define MAXENTITES 128
+
+
 #define MOVEPADDING 0.05
 #define MOVERATIO   0.5
 

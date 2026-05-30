@@ -1028,9 +1028,65 @@ void mapRender(BspBranch* map, Entity* pov, float scale)
 }
 
 
+Entity*[MAXENTITES] sortedList;
+
+int sortEntites(EntityList* list, Entity* pov)
+{
+    float[MAXENTITES]   value;
+    Entity*[MAXENTITES] copyList;
+    int                 hold;
+    float               tmp;
+    float               cap   = 0.0;
+    int                 count = 0;
+    EntityList         *index = list;
+    float               povX  = pov->xPos;
+    float               povY  = pov->yPos;
+
+    //Get distances
+    while(index != NULL)
+    {
+        value[count]    = distSQRD(povX - index->item->xPos, povY - index->item->yPos);
+        copyList[count] = index->item;
+
+        if(value[count] > cap)
+        {
+            hold = count;
+            cap = value[count];
+        }
+
+        count++;
+        index = index->next;
+    }
+
+    if(count == 0)
+        return 0;
+
+
+    sortedList[0] = copyList[hold];
+
+    for(int i = 1; i < count; i++)
+    {
+        tmp = 0.0;
+        for(int j = 0; j < count; j++)
+        {
+            if(value[j] > tmp && value[j] < cap)
+            {
+                hold = j;
+                tmp = value[j];
+            }
+        }
+
+        cap = tmp;
+        sortedList[i] = copyList[hold];
+    }
+
+    return count;
+}
+
 void drawBspLeaf(FrameBuffer* clipping, BspLeaf* leaf, Entity* pov, int ID)
 {
-    int      segSize = sizeof(Segment*);
+    int segSize = sizeof(Segment*);
+    int tmp;
 
     Segment** segList = leaf->segList;
     while(*segList != NULL)
@@ -1042,11 +1098,10 @@ void drawBspLeaf(FrameBuffer* clipping, BspLeaf* leaf, Entity* pov, int ID)
         segList += segSize;
     }
 
-    EntityList* listNode = leaf->entities;
-    while(listNode != NULL)
+    tmp = sortEntites(leaf->entities, pov);
+    for(int i = 0; i < tmp; i++)
     {
-        drawBillboard(listNode->item, pov);
-        listNode = listNode->next;
+        drawBillboard(sortedList[i], pov);
     }
 
     segList = leaf->segList;
