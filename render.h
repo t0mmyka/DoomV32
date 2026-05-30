@@ -644,6 +644,7 @@ void drawPlanes(WallDrawData* data, int xPos, int yPos, int width, int height)
         "_plane_while_loop_end:"
     }
 
+    set_multiply_color(color_white);
     return;
 }
 

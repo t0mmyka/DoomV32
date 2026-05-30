@@ -531,6 +531,10 @@ void main(void)
 
     assignEntities(things, 3, &rootNode);
 
+    select_texture(4);
+    select_region(0);
+    define_region(0, 0, 640, 360, 0, 0);
+
     while(true)
     {
         clear_screen(color_black);
@@ -557,6 +561,10 @@ void main(void)
         maxDepth = bspPreRender(&drawDepth, &rootNode, &user, 1) - 1;
         bspRender(&drawDepth, &rootNode, &user, maxDepth);
         drawDepth = cleanBuffer;
+        select_texture(4);
+        select_region(0);
+        draw_region_at(0, 0);
+
         if(gamepad_button_x() > 0)
         {
             mapScale *= 1.01;
